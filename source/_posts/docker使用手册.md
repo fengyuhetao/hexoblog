@@ -16,7 +16,7 @@ tags:
 
 3. 运行镜像
 
-   > docker run -d -p 80:8080 [镜像名称]
+   > docker run --name [容器名称(可选)] -d -p 80:8080 [镜像名称]
 
 4. 查看镜像状态
 
@@ -40,3 +40,30 @@ tags:
    >
    > docker rm [容器ID]
 
+9. 创建一个守护态的Docker容器，然后使用docker attach命令进入该容器。
+
+   >  sudo docker run -itd ubuntu:14.04 /bin/bash 
+
+10. 进入容器,这方法不怎么好
+
+  >  sudo docker attach [容器id]
+
+11. 进入容器
+
+    > docker exec -it [容器id|容器名称] /bin/bash
+
+12. 删除image
+
+    > docker rmi [ImageID]
+
+13. 查看端口开启情况
+
+    > docker port [容器名称]
+
+14. 从容器中复制文件
+
+    > docker cp [容器名称]:[path\]             \[主机path\]
+
+15. 从主机复制文件到容器
+
+    > docker cp [主机path]                            \[容器名称\]:[path]

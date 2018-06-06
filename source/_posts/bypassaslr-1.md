@@ -4,7 +4,7 @@ date: 2018-05-21 16:30:00
 tags:
 ---
 
-# 绕过ASLR--第一部分
+# 绕过ASLR--return2plt
 
 ## 编译代码
 
@@ -605,6 +605,34 @@ $ objdump -d victim | grep "<main>:" -A 11
    tianji@tianji-machine:~/Desktop/sploit/bypassaslr_1$ for i in $(objdump -d sh | grep "^ " | cut -f2); do echo -n '\x'$i; done; echo
    \x31\xf6\x48\xbb\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x56\x53\x54\x5f\x6a\x3b\x58\x31\xd2\x0f\x05
    ```
+
+6. retn和leave和call
+
+   retn: 
+
+   > 64位: pop rip;  rsp = rsp + 8
+   >
+   > 32位: pop eip; esp = esp + 4
+   >
+   > retn N操作：先eip=[esp]，然后esp=esp+4+N
+
+   leave:
+
+   > 64位: move rsp rbp; pop rbp               将rbp中的值传给rsp
+   >
+   > 32位: move esp ebp; pop ebp             将ebp中的值传给esp
+
+   call:
+
+   > 64位: push rip; jump 目的位置
+   >
+   > 32位: push eip; jump 目的位置
+
+7. 32位寻找偏移
+
+   > pattern_create 50
+   >
+   > pattern_offset 字符串
 
 ## 调试代码
 
