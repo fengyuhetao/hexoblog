@@ -1,7 +1,7 @@
 ---
 title: mysql忘记密码/修改密码
 date: 2018-05-29 15:29:54
-tags:
+tags: mysql
 ---
 
 1.  关闭mysql

@@ -1,7 +1,7 @@
 ---
 title: linux命令执行
 date: 2018-06-04 11:23:22
-tags:
+tags: ctf
 ---
 
 ## linux下执行命令绕过字符串过滤

@@ -1,7 +1,7 @@
 ---
 title: LD_PRELOAD
 date: 2018-06-04 10:10:00
-tags:
+tags: pwn
 ---
 
 # LRE_PAYLOAD绕过open_basedir

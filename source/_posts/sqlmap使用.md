@@ -1,7 +1,7 @@
 ---
 title: sqlmap使用
 date: 2018-06-08 09:45:39
-tags:
+tags: web安全
 ---
 
 # sqlmap使用手册

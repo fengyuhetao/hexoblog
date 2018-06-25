@@ -1,7 +1,7 @@
 ---
 title: misc思路
 date: 2018-05-07 11:05:07
-tags:
+tags: ctf
 ---
 
 1. 凯撒13世 rot13
@@ -9,6 +9,8 @@ tags:
 2. roqtp697t95j3 对应键盘下一行
 
 3. 栅栏密码
+
+   <!-- more -->
 
 4. 各种文件头
 
@@ -390,4 +392,4 @@ tags:
 
 7. 如果有fireworks的字样，可以使用Adobe Fireworks打开
 
-8. 
+8. U2Fsd特征易知是AES加密的密文,使用解密网站，密钥为空
