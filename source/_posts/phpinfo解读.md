@@ -1,3 +1,10 @@
+---
+title: phpinfo解读
+date: 2018-05-22 14:35:41
+tags:
+password: 654321
+---
+
 # phpinfo解读
 
 <!--more-->
