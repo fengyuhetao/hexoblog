@@ -25,4 +25,3 @@ tags: ctf
 > find /tmp -iname sth -or -exec ls \;                会多次执行
 >
 > find /tmp -iname sth -or -exec ls \; -quit        只执行一次
-
