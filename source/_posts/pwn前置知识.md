@@ -35,6 +35,8 @@ $ objdump -d victim | grep "<main>:" -A 11
  6c8:   e8 93 ff ff ff          call   660 <foo>
 ```
 
+<!--more-->
+
 ## 查找libc基地址
 
 方法一:
