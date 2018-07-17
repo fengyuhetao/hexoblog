@@ -1,7 +1,7 @@
 ---
 title: pwn备忘录
 date: 2018-05-09 20:55:11
-tags:
+tags: pwn
 ---
 
 ## checksec检测到的保护机制

@@ -1,7 +1,7 @@
 ---
 title: phpinfo解读
 date: 2018-05-22 14:35:41
-tags:
+tags: web
 password: 654321
 ---
 

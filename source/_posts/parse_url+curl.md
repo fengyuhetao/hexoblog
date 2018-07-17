@@ -1,7 +1,7 @@
 ---
 title: parse_url + curl
 date: 2018-04-24 9:55:40
-tags:
+tags: web
 ---
 
 # parse_url + curl
