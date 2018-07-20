@@ -1,7 +1,8 @@
 ---
 title: bypassaslr_1
 date: 2018-05-21 16:30:00
-tags: pwn
+tags: 
+- pwn
 ---
 
 # 绕过ASLR--return2plt
