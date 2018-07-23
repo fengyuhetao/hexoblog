@@ -1,7 +1,7 @@
 ---
 title: googlectf2018
 date: 2018-06-26 21:10:29
-tags:
+tags: ctf
 ---
 
 ## Beginner's Quest - Moar

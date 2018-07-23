@@ -641,3 +641,7 @@ From 0x7fffffffda50 to 0x7fffffffdc68: 536 bytes, 134 dwords
 首先搜索字符串"/home",第一个地址是真实地址，在搜索指向该地址的指针，该指针也就是我们要找的argv[0]的地址。
 
 当前$rsp的值就是 存在栈溢出变量的地址
+
+## ubuntu 16  64位默认加载地址
+
+运行程序，然后查看 /proc/pid/maps

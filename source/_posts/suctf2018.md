@@ -1,7 +1,7 @@
 ---
 title: suctf2018
 date: 2018-05-28 16:46:05
-tags:
+tags: ctf
 password: 654321
 ---
 
@@ -9,7 +9,7 @@ password: 654321
 
 <!--more-->
 
-没做过，自己复现
+赛后总结
 
 docker仓库：
 
