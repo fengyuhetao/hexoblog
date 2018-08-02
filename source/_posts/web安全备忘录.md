@@ -30,3 +30,4 @@ php_flag engine 1
 ```
 
 php_flag 打开或者关闭PHP解析，本指令仅在使用PHP的Apache模块版本时才有用，可以基于目录或者虚拟主机来打开或者关闭PHP，将engine off放到httpd.conf文件中适当的位置就可以激活或者禁用PHP。
+
