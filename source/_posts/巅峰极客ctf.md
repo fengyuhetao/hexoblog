@@ -144,7 +144,7 @@ file_put_contents('log.txt',$_POST['v']);
 
 ```
 参考网址：
-https://paper.tuisec.win/detail/d1053143f127862	
+https://paper.tuisec.win/detail/d1053143f127862
 https://xz.aliyun.com/t/2469#toc-3
 ```
 
@@ -153,6 +153,8 @@ https://xz.aliyun.com/t/2469#toc-3
 ## A simple CMS
 
 **利用缓存getshell**
+
+慢慢分析吧。挖坑
 
 
 

