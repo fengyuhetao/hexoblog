@@ -1,8 +1,9 @@
 ---
 title: python3和python2 base64的问题
-date: 2018-03-26 17:12:56
 tags:
-- python
+  - python
+abbrlink: 40688
+date: 2018-03-26 17:12:56
 ---
 首先我们来看两段代码：
 

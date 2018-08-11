@@ -1,7 +1,8 @@
 ---
 title: cbc翻转
-date: 2018-05-08 15:50:54
 tags: web安全
+abbrlink: 62655
+date: 2018-05-08 15:50:54
 ---
 
 # CBC翻转攻击

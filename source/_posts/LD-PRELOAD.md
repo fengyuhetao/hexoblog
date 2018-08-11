@@ -1,7 +1,10 @@
 ---
-title: LD_PRELOAD
+title: LRE_PAYLOAD绕过open_basedir
+tags: web安全
+abbrlink: 51203
 date: 2018-06-04 10:10:00
-tags: pwn
+description: 利用LRE_PRELOAD绕过php代码中open_basedir的限制
+keywords: LRE_PRELOAD-PHP-open_basedir
 ---
 
 # LRE_PAYLOAD绕过open_basedir

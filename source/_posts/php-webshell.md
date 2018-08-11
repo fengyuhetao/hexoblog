@@ -1,8 +1,9 @@
 ---
 title: php-命令执行
-date: 2018-07-18 15:58:22
-tags:
 passwd: 345678
+abbrlink: 5109
+date: 2018-07-18 15:58:22
+tags: web安全
 ---
 
 1. webshell

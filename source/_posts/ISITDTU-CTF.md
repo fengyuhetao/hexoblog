@@ -1,7 +1,9 @@
 ---
 title: ISITDTU-CTF
-date: 2018-07-30 11:37:21
 tags: ctf
+SEO_title: ISICTF 2018 writeup
+abbrlink: 6549
+date: 2018-07-30 11:37:21
 ---
 
 ## Web

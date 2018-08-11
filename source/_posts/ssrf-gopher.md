@@ -1,7 +1,8 @@
 ---
 title: ssrf+gopher
+abbrlink: 29914
 date: 2018-06-30 09:52:45
-tags:
+tags: ctf
 ---
 
 ## AceBear Security  Contest-Tet Shopping

@@ -1,8 +1,9 @@
 ---
 title: phpinfo解读
-date: 2018-05-22 14:35:41
-tags: web
+tags: web安全
 password: 654321
+abbrlink: 23527
+date: 2018-05-22 14:35:41
 ---
 
 # phpinfo解读

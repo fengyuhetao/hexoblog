@@ -1,7 +1,8 @@
 ---
 title: php命令执行函数
+abbrlink: 45992
 date: 2018-07-15 09:56:37
-tags:
+tags: web安全
 ---
 
 代码或命令执行函数：

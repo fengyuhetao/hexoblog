@@ -1,7 +1,8 @@
 ---
 title: pwn前置知识
-date: 2018-06-08 09:46:21
 tags: pwn
+abbrlink: 29112
+date: 2018-06-08 09:46:21
 ---
 
 ## 调用约定
@@ -34,8 +35,6 @@ $ objdump -d victim | grep "<main>:" -A 11
  6c3:   bf 01 00 00 00          mov    edi,0x1
  6c8:   e8 93 ff ff ff          call   660 <foo>
 ```
-
-<!--more-->
 
 ## 查找libc基地址
 

@@ -1,7 +1,8 @@
 ---
 title: web安全备忘录
+abbrlink: 16486
 date: 2018-06-30 19:29:10
-tags:
+tags: web安全
 ---
 
 ## dumpfile和outfile的区别

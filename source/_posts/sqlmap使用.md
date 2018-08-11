@@ -1,7 +1,8 @@
 ---
 title: sqlmap使用
-date: 2018-06-08 09:45:39
 tags: web安全
+abbrlink: 5359
+date: 2018-06-08 09:45:39
 ---
 
 # sqlmap使用手册

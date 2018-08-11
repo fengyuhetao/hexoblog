@@ -1,7 +1,8 @@
 ---
 title: linux命令执行
-date: 2018-06-04 11:23:22
 tags: ctf
+abbrlink: 50844
+date: 2018-06-04 11:23:22
 ---
 
 ## linux下执行命令绕过字符串过滤

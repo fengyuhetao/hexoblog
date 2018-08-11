@@ -1,7 +1,8 @@
 ---
 title: parse_url + curl
-date: 2018-04-24 9:55:40
-tags: web
+tags: web安全
+abbrlink: 15636
+date: 2018-04-24 09:55:40
 ---
 
 # parse_url + curl

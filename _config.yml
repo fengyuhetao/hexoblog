@@ -3,19 +3,20 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: 天极
+title: Tianji' Blogs
 subtitle:
 description:
 keywords:
-author: 天极
+author: Tianji
 language:
 timezone:
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://fengyuhetao.github.io
+url: https://www.tiandiwuji.top
 root: /
-permalink: :year/:month/:day/:title/
+#permalink: :year/:month/:day/:title/
+permalink: posts/:abbrlink/
 permalink_defaults:
 
 # Directory
@@ -79,7 +80,9 @@ theme: archer
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repo: https://github.com/fengyuhetao/fengyuhetao.github.io.git
+  repo: 
+    - https://github.com/fengyuhetao/fengyuhetao.github.io.git
+    - https://git.coding.net/fengyuhetao/fengyuhetao.coding.me.git
   branch: master
   message: update
 
@@ -101,3 +104,8 @@ jsonContent:
     excerpt: false
     categories: true
     tags: true
+
+nofollow:
+  enable: true
+  exclude:
+  - www.baidu.com

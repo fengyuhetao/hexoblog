@@ -1,7 +1,8 @@
 ---
 title: python多线程和lock和Rlock
+abbrlink: 54865
 date: 2018-06-14 17:02:12
-tags:
+tags: python
 ---
 
 在threading模块中，定义两种类型的琐：threading.Lock和threading.RLock。

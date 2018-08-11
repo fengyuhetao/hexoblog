@@ -1,8 +1,9 @@
 ---
 title: url相对路径和绝对路径
-date: 2018-03-27 09:53:14
 tags:
-- 前端
+  - 前端
+abbrlink: 24854
+date: 2018-03-27 09:53:14
 ---
 jquery.min.js的绝对路径:
 
@@ -10,31 +11,30 @@ jquery.min.js的绝对路径:
 http://39.107.33.96:20000/static/js/jquery.min.js
 ```
 
-##### 当前url: http://39.107.33.96:20000/index.php/view/
+当前url: http://39.107.33.96:20000/index.php/view/
 
 html中引入jquery.min.js,相对路径:
 ```
 <script src="../static/js/jquery.min.js"></script>
-```   
+```
 
 此时: 浏览器解析js的路径:  
 ```
 http://39.107.33.96:20000/index.php/static/js/jquery.min.js  找不到
 ```
 
-
-##### 当前url: http://39.107.33.96:20000/index.php/view
+当前url: http://39.107.33.96:20000/index.php/view
 
 html中引入jquery.min.js，采用相对路径:
 ```
 <script src="../static/js/jquery.min.js"></script>
-```   
+```
 
 此时: js的路径:   http://39.107.33.96:20000/static/js/jquery.min.js 可以找到
 
-#### 注意:http://39.107.33.96:20000/index.php/view/article/1152 可访问
+注意:http://39.107.33.96:20000/index.php/view/article/1152 可访问
 
-##### 当前url: http://39.107.33.96:20000/index.php/view/article/1152/..%2f..%2f..%2f..%2findex.php
+当前url: http://39.107.33.96:20000/index.php/view/article/1152/..%2f..%2f..%2f..%2findex.php
 
 对于php而言，它获得的请求是url解码后的，%2F会被解码为/，apache和nginx会按照目录的方式来返回我们请求的资源。
 也就是访问

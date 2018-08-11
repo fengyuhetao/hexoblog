@@ -1,7 +1,8 @@
 ---
 title: real-world-ctf
-date: 2018-07-30 20:25:36
 tags: ctf
+abbrlink: 13474
+date: 2018-07-30 20:25:36
 ---
 
 ## Web

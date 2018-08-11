@@ -1,7 +1,9 @@
 ---
 title: googlectf2018
-date: 2018-06-26 21:10:29
 tags: ctf
+SEO_title: googlectf 2018
+abbrlink: 22546
+date: 2018-06-26 21:10:29
 ---
 
 ## Beginner's Quest - Moar

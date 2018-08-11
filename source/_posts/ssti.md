@@ -1,7 +1,8 @@
 ---
 title: ssti
+abbrlink: 28940
 date: 2018-07-17 15:09:17
-tags:
+tags: python安全
 ---
 
 ## payload大全

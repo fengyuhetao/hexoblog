@@ -1,7 +1,8 @@
 ---
 title: linux格式化字符串漏洞
-date: 2018-06-08 17:55:43
 tags: ctf
+abbrlink: 54897
+date: 2018-06-08 17:55:43
 ---
 
 >  offset.py

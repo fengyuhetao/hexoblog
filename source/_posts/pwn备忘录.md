@@ -1,7 +1,8 @@
 ---
 title: pwn备忘录
-date: 2018-05-09 20:55:11
 tags: pwn
+abbrlink: 53269
+date: 2018-05-09 20:55:11
 ---
 
 ## checksec检测到的保护机制

@@ -1,5 +1,6 @@
 ---
 title: proc的作用
+abbrlink: 9490
 date: 2018-06-24 10:55:47
 tags:
 ---

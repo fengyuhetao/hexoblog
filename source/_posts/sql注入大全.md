@@ -1,12 +1,11 @@
 ---
 title: sql注入大全
+tags:
+  - web安全
+categories:
+  - 安全
+abbrlink: 41083
 date: 2018-03-21 09:26:16
-tags: 
-- 安全
-- sql注入
-categories: 
-- 安全
-- sql注入
 ---
 - 表名
 

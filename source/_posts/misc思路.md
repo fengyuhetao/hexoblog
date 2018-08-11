@@ -1,7 +1,8 @@
 ---
 title: misc思路
-date: 2018-05-07 11:05:07
 tags: ctf
+abbrlink: 60875
+date: 2018-05-07 11:05:07
 ---
 
 1. 凯撒13世 rot13

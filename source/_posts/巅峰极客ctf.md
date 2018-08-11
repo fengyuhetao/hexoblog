@@ -1,7 +1,8 @@
 ---
 title: 巅峰极客ctf
-date: 2018-07-23 20:33:53
 tags: ctf
+abbrlink: 46785
+date: 2018-07-23 20:33:53
 ---
 
 ## pentest
