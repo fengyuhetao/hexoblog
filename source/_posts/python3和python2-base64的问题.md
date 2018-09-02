@@ -8,30 +8,36 @@ date: 2018-03-26 17:12:56
 首先我们来看两段代码：
 
 python2.7:
-<pre>
+
+```python
 text = 'system'
 text1 = ''
 for i in text:
     text1 += chr(ord(i) +10)
 print base64.b64encode(text1)
-</pre>
-<pre>
+```
+
 结果:
+
+```
 fYN9fm93
-</pre>
+```
 
 python3.5:
-<pre>
+
+```
 text = 'system'
 text1 = ''
 for i in text:
     text1 += (chr(ord(i) +10))
 print(base64.b64encode(str.encode(text1)))
-</pre>
-<pre>
+```
+
 结果:
+
+```
 b'fcKDfX5vdw=='
-</pre>
+```
 
 我们可以发现，两次base64的结果并不相同。
 
@@ -40,32 +46,36 @@ b'fcKDfX5vdw=='
 我们可以将text1打印出来:
 
 python2.7:
-<pre>
+
+```
 text = 'system'
 text1 = ''
 for i in text:
     text1 += chr(ord(i) +10)
 print text1
-</pre>
+```
 
-<pre>
 结果:
+
+```
 }儅~ow
-</pre>
+```
 
 python3.5:
-<pre>
+
+```
 text = 'system'
 text1 = ''
 for i in text:
     text1 += chr(ord(i) +10)
 print(str.encode(text1))
-</pre>
+```
 
-<pre>
 结果:
+
+```
 b'}\xc2\x83}~ow'
-</pre>
+```
 
 在经过
 ```
@@ -85,21 +95,22 @@ chr(ord(i) +10)
 
 解决方法:
 在python3.5下，我们可以使用bytesarray
-<pre>
+
+```
 text = 'system'
 text1 =  bytearray()
 for i in text:
     text1.append(ord(i) + 10)
 print(text1)
 print(base64.b64encode(text1))
-</pre>
-<pre>
+```
+
 结果:
+
+```
 bytearray(b'}\x83}~ow')
 b'fYN9fm93'
-</pre>
-
-
+```
 
 
 

@@ -8,8 +8,6 @@ date: 2018-05-22 14:35:41
 
 # phpinfo解读
 
-<!--more-->
-
 我们以 [链接：](http://675ba661.2m1.pw/5a258c55-e0e9-495c-8b74-4ffd2885a2f8.php)[phpinfo()](http://675ba661.2m1.pw/5a258c55-e0e9-495c-8b74-4ffd2885a2f8.php) 为例来讲解吧。
 
 ## 版本更迭

