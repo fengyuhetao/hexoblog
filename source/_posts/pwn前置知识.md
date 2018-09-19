@@ -643,4 +643,11 @@ From 0x7fffffffda50 to 0x7fffffffdc68: 536 bytes, 134 dwords
 
 ## ubuntu 16  64位默认加载地址
 
-运行程序，然后查看 /proc/pid/maps
+运行程序，然后查看 /proc/pid/maps 或者在gdb里边使用 `vmmap`命令。
+
+## ida调试elf文件
+
+在linux中运行 `linux_server`或者`linux_server64`。
+
+然后设置`ida`。
+

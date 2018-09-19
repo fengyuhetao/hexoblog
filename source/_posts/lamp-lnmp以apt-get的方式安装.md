@@ -1,7 +1,8 @@
 ---
 title: lamp && lnmp以apt-get的方式安装
-date: 2018-09-05 20:12:31
 tags: 运维
+abbrlink: 18428
+date: 2018-09-05 20:12:31
 ---
 
 # lnmp
