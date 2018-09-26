@@ -22,6 +22,8 @@ tags:
 * nmap
 
   > nmap -sn 192.168.71.0/24
+  >
+  > 全端口扫描: nmap -p- -sV ip地址
 
 * httpscan
 
