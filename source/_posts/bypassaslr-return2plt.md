@@ -1,5 +1,5 @@
 ---
-title: bypassaslr_1
+title: bypassaslr_return2plt
 tags:
   - pwn
 abbrlink: 32791
@@ -224,6 +224,3 @@ io = process("./vuln")
 io.sendline(payload)
 io.interactive()
 ```
-
-
-

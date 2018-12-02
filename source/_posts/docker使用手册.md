@@ -13,7 +13,7 @@ date: 2018-05-29 14:36:55
 
 2. 构建镜像
 
-   >  docker build -t \[镜像名称\]        \[Dockerfile所在目录\]
+   >  docker build -t \[镜像名称\]   \[Dockerfile所在目录\]
 
 3. 运行镜像
 

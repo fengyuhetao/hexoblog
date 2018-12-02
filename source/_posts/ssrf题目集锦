@@ -1,5 +1,5 @@
 ---
-title: ssrf+gopher
+title: ssrf题目集锦
 abbrlink: 29914
 date: 2018-06-30 09:52:45
 tags: ctf
@@ -224,3 +224,14 @@ if __name__ == '__main__':
     exp()
 ```
 
+## CTFZONE-ctf2018
+
+漏洞说明:
+
+1. ssrf
+2. 开放25端口
+
+## BCTF2018
+
+1. ssrf
+2. dict扫端口，开放selenium

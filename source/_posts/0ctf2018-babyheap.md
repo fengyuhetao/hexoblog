@@ -682,9 +682,43 @@ pwndbg> x/xg 0x7ffff7dd1b4c
 0x7ffff7dd1b4c <main_arena+45>:	0x0000000000000056        |   <-- 成功
 ```
 
-只有当heap基地址以`0x56`开头时，才能getshell。这是因为，如果以`0x55`开头的话，程序会认为该区块处于使用状态，因而无法申请出来。只有开启地址随机化之后，heap基地址可能以`0x55`开头，也可能以`0x56`开头，多试几次即可。
+顺便提一下: 0xXXXXXXXX00000056，类似于这样的都行，因为size是int型，只占4个字节。
+
+只有当heap基地址以`0x56`开头时，才能getshell。这是因为，如果以`0x55`开头的话，程序出错。只有开启地址随机化之后，heap基地址可能以`0x55`开头，也可能以`0x56`开头，多试几次即可。
 
 偏移可通过` 35 = 0x7ffff7dd1b78 - 0x7ffff7dd1b45`计算得到。
+
+0x55出错原因:
+
+0x50         0 0 0                    √
+
+0x51         0 0 1                    √
+
+0x52         0 1 0                    √
+
+0x53         0 1 1                     √   
+
+0x54         1 0 0                     x
+
+0x55         1 0 1                     x
+
+0x56         1 1 0                     √
+
+0x57         1 1 1                     √
+
+0x58 ~~ 0x5f 同上，0x5c和0x5d也会出错。
+
+三个标志位含义如下:             
+
+NON_MAIN_ARENA，记录当前 chunk 是否不属于主线程，1表示不属于，0表示属于。
+
+IS_MAPPED，记录当前 chunk 是否是由 mmap 分配的。
+
+PREV_INUSE，记录前一个 chunk 块是否被分配。
+
+```assert (!mem || chunk_is_mmapped (mem2chunk (mem)) || av == arena_for_chunk (mem2chunk (mem)));```
+
+chunk如果属于主线程，那么一定有mmap分配。所以0x54和0x55标志位有误，无法通过检测。
 
 ## getshell
 
