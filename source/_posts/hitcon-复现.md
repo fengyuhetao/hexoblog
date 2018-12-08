@@ -2,7 +2,7 @@
 title: hitcon-复现
 abbrlink: 49989
 date: 2018-10-23 19:08:03
-tags:
+tags: ctf
 ---
 
 # Web
@@ -14,7 +14,12 @@ tags:
 	($_=@$_GET['orange']) && @substr(file($_)[0], 0, 6) === "@<?php" ? include($_) : highlight_file(__FILE__);
 ```
 
-参考链接: https://hackmd.io/s/B1A2JIjjm
+参考链接:
+
+* https://hackmd.io/s/B1A2JIjjm
+* https://hackmd.io/s/SkxOwAqiQ
+
+* https://www.anquanke.com/post/id/162656
 
 考点: session.upload + lfi
 

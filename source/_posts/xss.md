@@ -486,5 +486,7 @@ function getsource(src){
 getsource("/home/publiclist");
 ```
 
+## XSS提交请求
+
 
 

@@ -2,7 +2,7 @@
 title: 0ctf2018-babyheap
 keywords: 0ctf-2018-babyheap
 description: 0ctf-2018-babyheap-writeup
-tags: ctf
+tags: pwn
 abbrlink: 27029
 date: 2018-08-06 23:16:39
 ---
