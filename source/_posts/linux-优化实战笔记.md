@@ -151,3 +151,267 @@ Linux 按照特权等级，把进程的运行空间分为内核空间和用户�
 跟进程上下文不同，中断上下文切换并不涉及到进程的用户态。所以，即便中断过程打断了一个正处在用户态的进程，也不需要保存和恢复这个进程的虚拟内存、全局变量等用户态资源。中断上下文，其实只包括内核态中断服务程序执行所必需的状态，包括 CPU 寄存器、内核堆栈、硬件中断参数等。
 
 对同一个 CPU 来说，中断处理比进程拥有更高的优先级，所以中断上下文切换并不会与进程上下文切换同时发生。同样道理，由于中断会打断正常进程的调度和执行，所以大部分中断处理程序都短小精悍，以便尽可能快的执行结束。
+
+## 如何查看CPU上下文切换状况
+
+### 工具: 
+
+#### vmstat： 
+
+用于分析系统内存的使用情况，也用来分析CPU上下文切换和终端次数
+
+```
+tiandiwuji@tiandiwuji:~$ vmstat
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0 1736052 114604 1011184    0    0    46    23   34   48  0  0 98  1  0
+```
+
+含义:（具体可通过`man vmstat`查看）
+
+* cs(context switch) 每秒上下文切换次数
+
+* in(interrupt) 每秒中断次数
+* r(Running or Runnable) 就绪队列长度，也就是正在运行和等待CPU的进程数
+* b(Blocked) 处于不可中断睡眠状态的进程数
+
+#### pidstat
+
+通过-w选项，可以查看每个进程上下文切换的状况。
+
+```
+tiandiwuji@tiandiwuji:~$ pidstat -w 5
+Linux 4.15.0-42-generic (tiandiwuji) 	12/10/2018 	_x86_64_	(4 CPU)
+
+09:08:06 AM   UID       PID   cswch/s nvcswch/s  Command
+09:08:11 AM     0         1     47.21      0.00  systemd
+09:08:11 AM     0         8     45.02      0.00  rcu_sched
+09:08:11 AM     0        11      0.40      0.00  watchdog/0
+09:08:11 AM     0        14      0.40      0.00  watchdog/1
+09:08:11 AM     0        20      0.40      0.00  watchdog/2
+09:08:11 AM     0        26      0.40      0.00  watchdog/3
+09:08:11 AM     0        28      0.20      0.00  ksoftirqd/3
+09:08:11 AM     0        35      1.79      0.00  kworker/2:1
+09:08:11 AM     0        42      0.20      0.00  khugepaged
+```
+
+重要参数:
+
+* cswch: 每秒自愿上下文切换（voluntary context switches）的次数
+* nvcswch: 每秒非自愿上下文切换（non voluntary context switches）的次数
+
+**自愿上下文切换**，是指进程无法获取所需资源，导致的上下文切换。I/O、内存等系统资源不足时，就会发生自愿上下文切换。
+
+**非自愿上下文切换**，则是指进程由于时间片已到等原因，被系统强制调度，进而发生的上下文切换。大量进程都在争抢 CPU 时，就容易发生非自愿上下文切换。
+
+#### sysbench
+
+多线程的基准测试工具，一般用来评估不同系统参数下的数据库负载情况。
+
+案例分析:
+
+略。
+
+## 某个CPU使用率达到100%
+
+### CPU使用率
+
+CPU 使用率是单位时间内 CPU 使用情况的统计，以百分比的形式显示。
+
+CPU的时间会被分为很短的时间片，有调度器调度给各任务使用。
+
+Linux定义节拍率，触发时间中断，并通过全局变量Jiffies记录开机以来的节拍数。
+
+节拍率HZ是内核可配置选项。用户程序无法访问，内核还提供用户空间节拍率USER_HZ，固定位100.
+
+```
+root@tiandiwuji:/home/tiandiwuji# grep 'CONFIG_HZ=' /boot/config-$(uname -r)
+CONFIG_HZ=250
+```
+
+/proc/stat 提供系统的CPU和任务的统计信息。
+
+```
+root@tiandiwuji:/home/tiandiwuji# cat /proc/stat | grep ^cpu
+cpu  44665 3585 162408 2374608 26212 0 839 0 0 0
+cpu0 11846 651 40882 592547 6989 0 204 0 0 0
+cpu1 10418 1059 40370 594949 6362 0 87 0 0 0
+cpu2 11638 551 40506 593987 6458 0 290 0 0 0
+cpu3 10762 1323 40648 593124 6401 0 257 0 0 0
+```
+
+含义:
+
+<ul>
+<li>
+<p>user（通常缩写为 us），代表用户态 CPU 时间。注意，它不包括下面的 nice 时间，但包括了 guest 时间。</p>
+</li>
+<li>
+<p>nice（通常缩写为 ni），代表低优先级用户态 CPU 时间，也就是进程的 nice 值被调整为 1-19 之间时的 CPU 时间。这里注意，nice 可取值范围是 -20 到 19，数值越大，优先级反而越低。</p>
+</li>
+<li>
+<p>system（通常缩写为 sys），代表内核态 CPU 时间。</p>
+</li>
+<li>
+<p>idle（通常缩写为 id），代表空闲时间。注意，它不包括等待 I/O 的时间（iowait）。</p>
+</li>
+<li>
+<p>iowait（通常缩写为 wa），代表等待 I/O 的 CPU 时间。</p>
+</li>
+<li>
+<p>irq（通常缩写为 hi），代表处理硬中断的 CPU 时间。</p>
+</li>
+<li>
+<p>softirq（通常缩写为 si），代表处理软中断的 CPU 时间。</p>
+</li>
+<li>
+<p>steal（通常缩写为 st），代表当系统运行在虚拟机中的时候，被其他虚拟机占用的 CPU 时间。</p>
+</li>
+<li>
+<p>guest（通常缩写为 guest），代表通过虚拟化运行其他操作系统的时间，也就是运行虚拟机的 CPU 时间。</p>
+</li>
+<li>
+<p>guest_nice（通常缩写为 gnice），代表以低优先级运行虚拟机的时间。</p>
+</li>
+</ul>
+
+**CPU使用率 = ( 1 - 空闲时间 / 总CPU时间)**
+
+一般会间隔一段时间取两次值，计算平均CPU使用率
+
+**平局CPU使用率 = 1 - ((新空闲时间 - 旧空闲时间) / (新总CPU时间 / 旧总CPU时间))**
+
+### 查看CPU使用率
+
+* top 显示了系统总体的 CPU 和内存使用情况，以及各个进程的资源使用情况。
+
+* ps 则只显示了每个进程的资源使用情况。
+
+top指令空白行之后是进程的实时信息，每一行的%cpu列，表示进程CPU使用率，包括用户态和内核态CPU使用率之和，包括进程用户空间使用的CPU、通过系统调用执行的内核CPU、以及在就绪队列等待运行的CPU。在虚拟化运行环境中，还包括运行虚拟机占用的CPU。
+
+查看进程详细情况，包括用户态CPU和内核态CPU：
+
+使用pidstat命令。`pidstat 1 5`
+
+### CPU使用率过高
+
+1. GDB 会中断程序运行，只适合性能分析后期，找到问题后，线下在调试
+2. perf 内置性能分析工具，它以性能事件采样为基础，不仅可以分析系统的各种事件和内核性能，还可以用来分析指定应用程序的性能问题。
+
+`perf top -g -p <pid>` :  对进程进行跟踪分析其调用
+
+`perf top`，类似于 top，它能够实时显示占用 CPU，时钟最多的函数或者指令。
+
+```
+Samples: 1K of event 'cpu-clock', Event count (approx.): 276859353
+Overhead  Shared Object                    Symbol
+  38.00%  [kernel]                         [k] _raw_spin_unlock_irqrestore
+  11.82%  [kernel]                         [k] vmw_cmdbuf_header_submit
+   1.86%  [kernel]                         [k] __softirqentry_text_start
+   1.11%  [kernel]                         [k] vsnprintf
+   1.08%  libc-2.27.so                     [.] __strcmp_sse2_unaligned
+   1.04%  [kernel]                         [k] format_decode
+   1.01%  libc-2.27.so                     [.] _int_malloc
+   0.79%  [kernel]                         [k] finish_task_switch
+   0.79%  perf                             [.] 0x00000000001ea447
+   0.69%  libgobject-2.0.so.0.5600.2       [.] g_type_check_instance_is_a
+   0.67%  libc-2.27.so                     [.] malloc
+   0.63%  [kernel]                         [k] exit_to_usermode_loop
+   0.62%  [kernel]                         [k] kallsyms_expand_symbol.constprop.1
+   0.60%  libmutter-clutter-2.so           [.] clutter_actor_is_visible
+```
+
+输出结果中，第一行包含三个数据，分别是采样数（Samples）、事件类型（event）和事件总数量（Event count）。比如这个例子中，perf 总共采集了 833 个 CPU 时钟事件，而总事件数则为 97742399。**采样数需要我们特别注意.**,如果采样数过少，那么排序和百分比就没什么参考价值。
+
+`perf record`可以实时展示系统性能信息，并保存数据，`perf report`用于解析展示`perf record`保存的数据。参数`-g`表示开启调用关系的采样。
+
+案例:
+
+略。
+
+## CPU使用率很高，找不到高CPU的应用
+
+系统的 CPU 使用率，不仅包括进程用户态和内核态的运行，还包括中断处理、等待 I/O 以及内核线程等。所以当发现系统的 CPU 使用率很高的时候，不一定能找到相对应的高CPU使用率的进程。
+
+execsnoop 专为短时进程设计的工具。它通过 ftrace 实时监控进程的exec() 行为，并输出短时进程的基本信息，包括进程 PID、父进程 PID、命令行参数以及执行的结果。
+
+https://github.com/brendangregg/perf-tools/blob/master/execsnoop
+
+案例：略
+
+## 系统中出现大量不可中断进程和僵尸进程
+
+cpu使用类型除了用户CPU之外，还包括系统CPU（上下文切换），等待I/O的CPU（比如等待磁盘的响应）以及中断CPU（包括软中断和硬中断）等。
+
+I/O的CPU（iowait）升高的问题：
+
+当 iowait 升高时，进程很可能因为得不到硬件的响应，而长时间处于不可中断状态。从 ps 或者 top 命令的输出中，你可以发现它们都处于 D 状态，也就是不可中断状态（Uninterruptible Sleep）。
+
+状态：
+
+R： 是 Running 或 Runnable 的缩写，表示进程在 CPU 的就绪队列中，正在运行或者正在等待运行。
+
+D：  是 Disk Sleep 的缩写，也就是不可中断状态睡眠（Uninterruptible Sleep），一般表示进程正在跟硬件交互，并且交互过程不允许被其他进程或中断打断。
+
+Z：是 Zombie 的缩写，它表示僵尸进程，也就是进程实际上已经结束了，但是父进程还没有回收它的资源（比如进程的描述符、PID 等）。
+
+S:  是 Interruptible Sleep 的缩写，也就是可中断状态睡眠，表示进程因为等待某个事件而被系统挂起。当进程等待的事件发生时，它会被唤醒并进入 R 状态。
+
+I： 是 Idle 的缩写，也就是空闲状态，用在不可中断睡眠的内核线程上。前面说了，硬件交互导致的不可中断进程用 D 表示，但对某些内核线程来说，它们有可能实际上并没有任何负载，用 Idle 正是为了区分这种情况。要注意，D 状态的进程会导致平均负载升高， I 状态的进程却不会。
+
+T或者t: ，也就是 Stopped 或 Traced 的缩写，表示进程处于暂停或者跟踪状态。
+
+向一个进程发送 SIGSTOP 信号，它就会因响应这个信号变成暂停状态（Stopped）；再向它发送 SIGCONT 信号，进程又会恢复运行（如果进程是终端里直接启动的，则需要你用 fg 命令，恢复到前台运行）。
+
+而当你用调试器（如 gdb）调试一个进程时，在使用断点中断进程后，进程就会变成跟踪状态，这其实也是一种特殊的暂停状态，只不过你可以用调试器来跟踪并按需要控制进程的运行。
+
+X：也就是 Dead 的缩写，表示进程已经消亡，所以你不会在 top 或者 ps 命令中看到它。
+
+一旦父进程没有处理子进程的终止，使得子进程一直保持运行状态，那么子进程就会陷入僵尸状态。大量的僵尸进程会用尽PID进程号，导致新进程没有办法创建。
+
+pid最大值：
+
+```
+$ cat /proc/sys/kernel/pid_max 
+131072
+```
+
+案例:
+
+dstat: 是一个新的性能工具，它吸收了 vmstat、iostat、ifstat 等几种工具的优点，可以同时观察系统的 CPU、磁盘 I/O、网络以及内存使用情况。
+
+1. O_DIRECT 选项打开磁盘，于是绕过了系统缓存，直接对磁盘进行读写。容易导致 iowait升高
+2. 正确处理子进程
+
+```
+int status = 0;
+for (;;) {
+	for (int i = 0; i < 2; i++) {
+		if(fork()== 0) {
+			sub_process(disk);
+		}
+	}
+
+	sleep(5);
+}
+
+// 应该将该行放到for循环里
+while(wait(&status)>0);
+======================》
+for (;;) {
+		for (int i = 0; i < 2; i++) {
+			if(fork()== 0) {
+				sub_process(disk);
+			}
+		}
+
+		while(wait(&status)>0);
+		sleep(5);
+	}
+```
+
+iowait 高不一定代表 I/O 有性能瓶颈。当系统中只有 I/O 类型的进程在运行时，iowait 也会很高，但实际上，磁盘的读写远没有达到性能瓶颈的程度。
+
+僵尸进程出现的原因是父进程没有回收子进程的资源出现的。解决办法是找到父进程，在父进程中处理，使用pstree查父进程，然后查看父进程的源码检查wait()/waitpid()的调用或SIGCHLD信号处理函数的注册。
+
+略。

