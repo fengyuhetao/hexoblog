@@ -25,13 +25,17 @@ tags:
 
 7. /proc/mounts 文件系统列表
 
-8.  /proc/cpuinfo CPU信息
+8. /proc/cpuinfo CPU信息
 
 9. /proc/meminfo 内存信息
 
 10. /proc/[pid]/mountinfo 文件系统挂载的信息（可以看到docker文件映射的一些信息，如果是运行在容器内的进程，通常能找到重要数据的路径：如配置文件、代码、数据文件等）
 
-11.  /proc/[pid]/fd/[fd] 进程打开的文件（fd是文件描述符id）
+11. /proc/[pid]/fd/[fd] 进程打开的文件（fd是文件描述符id）
 
 12. /proc/[pid]/exe 指向该进程的可执行文件
+
+13. /proc/self/maps 查看进程映射信息，可以用于查看目录,和gdb中的vmmap命令一样
+
+14. /proc/self/cwd 是进程当前工作目录的符号链接
 

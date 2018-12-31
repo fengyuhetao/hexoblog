@@ -74,3 +74,27 @@ date: 2099-01-01 00:00:01
 * 《linux性能优化实战》系统中出现大量不可中断进程和僵尸进程的处理方法
 * 搞定pwnable.tw之dubblesort，逆向的话，算法还是挺重要的，需要补强
 * 写项目设计报告
+
+## 2018/12/16
+
+* 通过Otterctf中内存取证学习一波内存取证
+* 写项目设计报告，喵的。
+* 写开题ppt
+* pwnable.tw之hacknote 简单的堆题，通过uaf即可,trick: system("abcdasdf||sh")或者system("aasdfasdf;sh\x00") 也可以启动shell
+
+## 2018/12/17
+
+* 写开题报告
+* 《linux性能优化实战》怎么理解软中断
+* pwnable.tw之silver bullet搞定
+
+## 2018/12/19
+
+* 开题完毕，嘎嘎。。
+* 《linux性能优化实战》系统的软中断导致CPU使用率升高
+* 复习java，准备做项目，方便明年找工作。。。。。。。。。。
+
+## 2018/12/22
+
+* pwnable.tw之applestore搞定
+* 安恒12月赛，题目比较简单，web都做出来了，感觉没啥意思

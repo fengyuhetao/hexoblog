@@ -1,5 +1,6 @@
 ---
 title: otter-ctf
+abbrlink: 33972
 date: 2018-12-16 15:40:05
 tags:
 ---
