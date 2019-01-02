@@ -1,5 +1,6 @@
 ---
 title: java开发小记
+abbrlink: 7845
 date: 2018-12-27 21:13:11
 tags:
 ---
