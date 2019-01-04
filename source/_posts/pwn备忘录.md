@@ -922,7 +922,7 @@ print 就是打印变量（参数是什么，就打印什么），x但因给定�
 
 差不多，区别在于打印出来的字节多少而已。
 
-## read和gets和fgets和scanf和getchar
+## read和gets和fgets和scanf和getchar和aspfintf
 
 * gets: `char * gets(char *s)`
 
@@ -977,6 +977,10 @@ char s[20]; scanf("%20s", s); scanf遇到**空格**，不满20位，“\t”, "\
 * getchar():
 
 getchar 也会开辟一个堆块，作为缓冲区，不会释放。
+
+* asprintf
+
+asprintf()可以说是一个增强版的sprintf(),在不确定字符串的长度时，非常灵活方便，能够根据格式化的字符串长度，以malloc的形式申请足够的内存空间。此外，使用完后，必须通过free()释放空间。不过，这是GNU扩展的C函数库，不是标准C函数库或者POSIX。
 
 ## mmap分配问题
 

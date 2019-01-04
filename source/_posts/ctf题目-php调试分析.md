@@ -462,6 +462,168 @@ php://filter/convert.quoted-printable-encode/resource=data://,%bfAAAAAAAAAAAAAAA
 
 题目很简单，需要构造一个大于5184000,但是int之后很小的数字来绕过。`6e6`即可。
 
+测试代码：
+
+```
+<?php
+echo 60 * 60 * 24 * 30 * 2;
+echo "\n";
+echo 6e6;
+echo "\n";
+echo (int)'6e6';
+echo "\n";
+echo 60 * 60 * 24 * 30 * 3;
+```
+
+结果:
+
+```
+qianfa@qianfa:~/Desktop/temp$ php test.php 
+5184000
+6000000
+6
+7776000
+```
+
+那么为什么会出现这个结果呢?
+
+fuzz:
+
+ht.php:
+
+```
+<?php
+    error_reporting(0);
+    session_start();
+    var_dump($_GET['num']);
+    var_dump($_GET['num'] - 0);
+    var_dump((int)$_GET['num']);
+    var_dump((float)$_GET['num']);
+```
+
+测试:
+
+```
+qianfa@qianfa:/var/www/html$ curl localhost/ht.php?num=6e6
+string(3) "6e6"
+float(6000000)
+int(6)
+float(6000000)
+qianfa@qianfa:/var/www/html$ curl localhost/ht.php?num=6a6
+string(3) "6a6"
+int(6)
+int(6)
+float(6)
+```
+
+可以看到 `'6e6' - 0` 等于6000000，也就是说字符串`'6e6'`被转化成float型，并没有转为int型。使用int强制转化一个科学计数法表示的字符串，转换过程中并不能识别科学计数法，只是把**e**当做普通字符。效果和`'6a6'`一样。而`'6e6'`转化为float，变成浮点数，则可以识别科学计数法。
+
+使用多种php版本进行测试：
+
+test.py
+
+```
+import docker
+client = docker.from_env()
+
+
+php_versions = ['5.3','5.4','5.5','5.6', '7.0','7.1','7.2']
+for version in(php_versions):
+php = "php:"+version + "-cli"
+
+print(php)
+print("echo((int)'6e6')")
+print(client.containers.run("php:"+version+"-cli", '''php -r "echo((int)'6e6');"'''))
+print("echo((float)'6e6')")
+print(client.containers.run("php:"+version+"-cli", '''php -r "echo((float)'6e6');"''’))
+```
+
+结果：
+
+```
+qianfa@qianfa:~/Desktop/temp$ sudo python test.py 
+php:5.3-cli
+echo((int)'6e6')
+6
+echo((float)'6e6')
+6000000
+php:5.4-cli
+echo((int)'6e6')
+6
+echo((float)'6e6')
+6000000
+php:5.5-cli
+echo((int)'6e6')
+6
+echo((float)'6e6')
+6000000
+php:5.6-cli
+echo((int)'6e6')
+6
+echo((float)'6e6')
+6000000
+php:7.0-cli
+echo((int)'6e6')
+6
+echo((float)'6e6')
+6000000
+php:7.1-cli
+echo((int)'6e6')
+6000000
+echo((float)'6e6')
+6000000
+php:7.2-cli
+echo((int)'6e6')
+6000000
+echo((float)'6e6')
+6000000
+```
+
+可以看到在php7.0以前的版本中(int)’6e6’结果是6，但是在7.1以后的版本中，(int)’6e6’已经是6000000，符合(int)’6e6’ = (int)(float)’6e6’这个逻辑了。
+
+gdb调试,php7.2:
+
+```
+gdb --args php7 -r "echo((int)'6e6');"
+b _zval_get_long_func
+```
+
+因为使用CLion比较方便点，所以直接使用Clion了。
+
+在`zend_operators.c中_zval_get_long_func_ex`下断点:
+
+![](/assets/php/TIM截图20190104120339.png)
+
+此时，type为6，也就对应着string类型。
+
+![](/assets/php/TIM截图20190104120610.png)
+
+因此，会调用`_is_numeric_string_ex`函数来进行转化。
+
+![](/assets/php/TIM截图20190104120916.png)
+
+该函数中会处理科学计数法的问题:
+
+![](/assets/php/TIM截图20190104121258.png)
+
+最终会调用`zend_strtod`，该函数类似于`strtod`函数。
+
+![](/assets/php/TIM截图20190104121624.png)
+
+strtol不能识别科学计数法，字符串6e6转成整型是6，而strtod可以识别科学计数法，6e6转成浮点数是6000000。这也就可以解释**可以看到在php7.0以前的版本中(int)’6e6’结果是6，但是在7.1以后的版本中，(int)’6e6’已经是6000000，符合(int)’6e6’ = (int)(float)’6e6’这个逻辑了。**
+
+最终的处理逻辑是如果发现了小数点或者数字e，就采用zend_strtod来处理，这样就跟字符串转浮点数是一模一样的处理逻辑了。所以最终的结果也就符合了(int)’6e6’ = (int)(float)’6e6’这个逻辑。
+
+7.2版中使用了新的函数is_numeric_string替代strtoll。注释中说明使用新函数是为了避免strtoll的溢出问题，自己实现了is_number_string函数来替代strtoll。
+
+```
+/* Previously we used strtol here, not is_numeric_string,
+* and strtol gives you LONG_MAX/_MIN on overflow.
+* We use use saturating conversion to emulate strtol()'s
+* behaviour.
+*/
+```
+
 ## 文件上传的问题
 
 案例: 0CTF2018之ezDoor的全盘非预期解法
@@ -474,3 +636,4 @@ php://filter/convert.quoted-printable-encode/resource=data://,%bfAAAAAAAAAAAAAAA
 
 * https://hackmd.io/s/rJlfZva0m#exp
 * https://paper.seebug.org/566/#solvemepengkr-winter-sleep
+

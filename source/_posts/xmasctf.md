@@ -1,5 +1,6 @@
 ---
 title: xmasctf
+abbrlink: 49664
 date: 2018-12-15 13:58:07
 tags:
 ---
