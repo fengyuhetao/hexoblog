@@ -5,7 +5,7 @@ abbrlink: 46756
 date: 2018-12-04 10:24:03
 ---
 
-​	这几年，写的代码基本都是本地跑，也没碰到什么性能问题。不过，实习的时候，网站三天两头就崩溃，看代码也似乎没啥问题，现在想想，我的解决方案无非重启，继续运行，崩溃了，继续重启。。。。。当时，这些问题基本都是技术老大处理，我也接触不到，怎么搞定的一无所知。
+​	这几年，写的代码基本都是本地跑，也没碰到什么性能问题。不过，实习的时候，网站三天两头就崩溃，看代码也似乎没啥问题，现在想想，我的解决方案无非重启，继续运行，崩溃了，继续重启，要是虚拟机有毛病，直接重装虚拟机，传说中的3R工程师（replace, reinstall, restart）。。。。。当时，这些问题基本都是技术老大处理，我也接触不到，怎么搞定的一无所知。
 
 ​	希望《linux性能优化》能给我带来一些新的知识面。
 
@@ -497,3 +497,255 @@ tcpdump: tcpdump 是一个常用的网络抓包工具，常用来分析各种网
 
 ## Linux内存是怎么工作的
 
+### 虚拟内存
+
+物理内存也成为主存，大多是动态随机访问内存（DRAM)。只有内核能够直接访问物理内存。
+
+Linux为每个进程提供独立的虚拟地址空间，且连续。
+
+虚拟地址空间被分为内核空间和用于空间，32位和64位系统地址空间范围不同。
+
+![](/assets/linux/ed8824c7a2e4020e2fdd2a104c70ab7b.png)
+
+具体版:
+
+32位linux内核2.6.7以前默认布局：
+
+![](/assets/linux/TIM截图20190103170730.png)
+
+32位当前默认布局：
+
+![](/assets/linux/TIM截图20190103170839.png)
+
+64位默认布局：
+
+![](/assets/linux/TIM截图20190103170947.png)
+
+不同的进程都包含内核空间，但是这些内核空间均是相同的物理内存。进程切换到内核态之后，可以很方便的访问内核空间内存。
+
+### 内存映射
+
+将虚拟内存地址映射到物理地址内存：
+
+![](/assets/linux/TIM截图20190103171140.png)
+
+页表存储在CPU的内存管理单元MMU中，这样，正常情况下，处理器可以通过硬件找出要访问的内存。而当进程访问的虚拟地址在页表中查不到时，系统会产生一个**缺页异常**，，进入内核空间分配物理内存、更新进程页表，最后再返回用户空间，恢复进程的运行。
+
+Linux 通过 TLB（Translation Lookaside Buffer，转译后备缓冲器）来管理虚拟内存到物理内存的映射关系。当虚拟内存更新后，TLB 也需要刷新，内存的访问也会随之变慢。特别是在多处理器系统上，缓存是被多个处理器共享的，刷新缓存不仅会影响当前处理器的进程，还会影响共享缓存的其他处理器的进程。原因如上。
+
+TLB 其实就是 MMU 中页表的高速缓存。由于进程的虚拟地址空间是独立的，而 TLB 的访问速度又比 MMU 快得多，所以，通过减少进程的上下文切换，减少 TLB 的刷新次数，就可以提高 TLB 缓存的使用率，进而提高 CPU 的内存访问性能。不过要注意，MMU 并不以字节为单位来管理内存，而是规定了一个内存映射的最小单位，也就是页，通常是 4 KB 大小。这样，每一次内存映射，都需要关联 4 KB 或者 4KB 整数倍的内存空间。页的大小只有 4 KB ，导致的另一个问题就是，整个页表会变得非常大。比方说，仅 32 位系统就需要 100 多万个页表项（4GB/4KB），才可以实现整个地址空间的映射。为了解决页表项过多的问题，Linux 提供了两种机制，也就是多级页表和大页（HugePage）。
+
+Linux 用的正是四级页表来管理内存页，如下图所示，虚拟地址被分为 5 个部分，前 4 个表项用于选择页，而最后一个索引表示页内偏移。
+
+![](/assets/linux/b5c9179ac64eb5c7ca26448065728325.png)
+
+### 内存分配与回收
+
+#### 分配：
+
+malloc是c标准库提供的内存分配函数，对应到系统调用上，有两种实现方式，`brk()`和`mmap()`。
+
+对于小块内存(小于128k)，采用brk分配，通过移动堆顶位置来分配，释放后不会立即归还，会被缓存起来。易产生内存碎片 。释放:`free()`
+
+对于大块内存(大于128k)，直接使用内存映射mmap()分配，在文件映射端找一段空闲内存分配出去。释放后，直接归还系统，每次mmap都会发生缺页异常。易导致内核管理负担增大。释放: `unmap`
+
+通过以上两种方式调用之后，不会立即分配物理内存，只有在首次访问时，才会分配，通过缺页异常进入内核，由内核分配内存。
+
+在内核空间，Linux采用slab分配器管理小内存。可以把slab看成构建在伙伴系统上的一个缓存，主要作用就是分配并释放内核中的小对象。
+
+#### 回收
+
+* 回收缓存，比如使用 LRU（Least Recently Used）算法，回收最近使用最少的内存页面；
+* 回收不常访问的内存，把不常用的内存通过交换分区直接写到磁盘中；也就是swap（交换分区中）
+* 杀死进程，内存紧张时系统还会通过 OOM（Out of Memory），直接杀掉占用大量内存的进程。
+
+第三种方法是内核的一种保护机制，监控内存使用情况，并使用oom_score为每个进程的内存使用情况进行评分。
+
+* 一个进程消耗的内存越大，oom_score 就越大；
+* 一个进程运行占用的 CPU 越多，oom_score 就越小。
+
+该值可通过`/proc`文件系统，手动设置进程的oom_adj，调整oom_score。oom_adj 的范围是 [-17, 15]，数值越大，表示进程越容易被 OOM 杀死；数值越小，表示进程越不容易被 OOM 杀死，其中 -17 表示禁止 OOM。
+
+修改sshd进程的oom_score
+
+```
+echo -16 > /proc/$(pidof sshd)/oom_adj
+```
+
+### 查看内存使用情况
+
+`free`
+
+```
+[root@iz2zehekqyjug6ar3u4omgz ~]# free
+              total        used        free      shared  buff/cache   available
+Mem:        1883724       79732      164524         356     1639468     1602056
+Swap:             0           0           0
+```
+
+available 不仅包含未使用内存，还包括了可回收的缓存，所以一般会比未使用内存更大。不过，并不是所有缓存都可以回收，因为有些缓存可能正在使用中。
+
+`top`,按`M`切换到内存内存排序
+
+```
+top - 17:47:49 up 46 days, 22:21,  2 users,  load average: 0.00, 0.01, 0.05
+Tasks:  67 total,   2 running,  65 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.0 us,  0.3 sy,  0.0 ni, 99.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  1883724 total,   162908 free,    79996 used,  1640820 buff/cache
+KiB Swap:        0 total,        0 free,        0 used.  1601808 avail Mem
+
+  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND
+  327 root      20   0   69684  30772  30460 S  0.0  1.6   0:15.87 systemd-journal
+13420 root      20   0  293244  20100  16804 S  0.0  1.1   2:46.02 rsyslogd
+13618 root      20   0  573752  17124   6108 S  0.0  0.9   6:49.66 tuned
+  677 root      20   0  112876  12792    312 S  0.0  0.7   0:00.00 dhclient
+ 2148 root      20   0  129984  11608   9280 R  0.0  0.6 153:39.71 AliYunDun
+13537 polkitd   20   0  538564  10364   4788 S  0.0  0.6   0:07.49 polkitd
+16159 root      20   0  152540   5508   4212 S  0.0  0.3   0:00.01 sshd
+16240 root      20   0  152540   5508   4212 S  0.0  0.3   0:00.03 sshd
+ 6159 root      20   0  112812   4312   3284 S  0.0  0.2   0:00.22 sshd
+    1 root      20   0   43444   3664   2432 S  0.0  0.2   0:34.82 systemd
+14443 nginx     20   0  121272   3576   1060 S  0.0  0.2   0:00.00 nginx
+```
+
+* VIRT:是进程虚拟内存的大小，只要是进程申请过的内存，即便还没有真正分配物理内存，也会计算在内。
+* RES 是常驻内存的大小，也就是进程实际使用的物理内存大小，但不包括 Swap 和共享内存。
+* SHR 是共享内存的大小，比如与其他进程共同使用的共享内存、加载的动态链接库以及程序的代码段等。
+* %MEM 是进程使用物理内存占系统总内存的百分比。
+
+注意:
+
+1. 第一，虚拟内存通常并不会全部分配物理内存。从上面的输出，你可以发现每个进程的虚拟内存都比常驻内存大得多。
+2. 共享内存 SHR 并不一定是共享的，比方说，程序的代码段、非共享的动态链接库，也都算在 SHR 里。当然，SHR 也包括了进程间真正共享的内存。所以在计算多个进程的内存使用时，不要把所有进程的 SHR 直接相加得出结果。
+
+## 怎么理解内存中的Buffer和Cache
+
+buffer: 缓冲区。cache: 缓存。两者都是数据在内存中的临时存储。
+
+free命令数据来源
+
+* Buffers 是内核缓冲区用到的内存，对应的是  /proc/meminfo 中的 Buffers 值。
+* Cache 是内核页缓存和 Slab 用到的内存，对应的是  /proc/meminfo 中的 Cached 与 SReclaimable 之和。
+
+查看proc
+
+* Buffers 是对原始磁盘块的临时存储，也就是用来**缓存磁盘的数据**,，通常不会特别大（20MB 左右）。这样，内核就可以把分散的写集中起来，统一优化磁盘的写入，比如可以把多次小的写合并成单次大的写等等。
+
+* Cached 是从磁盘读取文件的页缓存，也就是用来**缓存从文件读取的数据**,。这样，下次访问这些文件数据时，就可以直接从内存中快速获取，而不需要再次访问缓慢的磁盘。\
+* SReclaimable 是 Slab 的一部分。Slab 包括两部分，其中的可回收部分，用 SReclaimable 记录；而不可回收部分，用 SUnreclaim 记录。
+
+```
+echo 3 >/proc/sys/vm/drop_caches
+```
+
+` /proc/sys/vm/drop_caches` ，这是通过 proc 文件系统修改内核行为的一个示例，写入 3 表示清理文件页、目录项、Inodes 等各种缓存。
+
+写文件时会用到 Cache 缓存数据，而写磁盘则会用到 Buffer 来缓存数据。虽然文档上只提到，Cache 是文件读的缓存，但实际上，Cache 也会缓存写文件时的数据。同样，Buffer 既可以用作“将要写入磁盘数据的缓存”，也可以用作“从磁盘读取数据的缓存”。
+
+**Buffer 是对磁盘数据的缓存，而 Cache 是文件数据的缓存，它们既会用在读请求中，也会用在写请求中**
+
+注: linux中的块设备可以直接访问（比如数据库应用程序），也可以通过存储文件系统访问
+
+## 利用系统缓存优化程序运行效率
+
+**存的命中率**：是指直接通过缓存获取数据的请求次数，占所有数据请求次数的百分比。
+
+安装cachestat, cachetop，这两工具均为bcc软件包的一部分。基于Linux内核的eBPF(extended Berkeley Packet Filters)机制，跟踪内核中管理的缓存，并输出缓存的使用和命中情况。
+
+```
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
+echo "deb https://repo.iovisor.org/apt/xenial xenial main" | sudo tee /etc/apt/sources.list.d/iovisor.list
+sudo apt-get update
+sudo apt-get install -y bcc-tools libbcc-examples linux-headers-$(uname -r)
+```
+
+```
+export PATH=$PATH:/usr/share/bcc/tools
+```
+
+安装pcstat:
+
+```
+$ export GOPATH=~/go
+$ export PATH=~/go/bin:$PATH
+$ go get golang.org/x/sys/unix
+$ go get github.com/tobert/pcstat/pcstat
+```
+
+`go get golang.org/x/sys/unix` 报错:
+
+```
+package golang.org/x/sys/unix: unrecognized import path "golang.org/x/sys/unix" (https fetch: Get https://golang.org/x/sys/unix?go-get=1: dial tcp 216.239.37.1:443: getsockopt: connection refused)
+```
+
+解决方案:
+
+```
+$ mkdir -p $GOPATH/src/golang.org/x/
+$ git clone https://github.com/golang/sys.git sys
+$ go get golang.org/x/sys/unix
+```
+
+报错:
+
+`undefined runtime.KeepAlive`,原因：
+
+```
+Sorry, Go 1.6 is no longer supported.
+
+If you were using Go 1.6 for App Engine, note that GAE standard supports Go 1.9 (by default) now.
+```
+
+升级golang即可。
+
+首先卸载go:
+
+```
+sudo apt-get remove golang-1.6
+sudo apt-get install golang-1.9
+```
+
+注意，原来卸载之后并没有把这里的文件卸载干净，这里的可执行文件也没有变。需要先清空原先的go文件夹。 
+
+```
+cd /usr/lib
+rm -rf go-1.6
+rm -rf go
+mkdir go
+cp -r ./go-1.9/* ./go
+```
+
+配置环境变量:
+
+```
+在/etc/profile文件末尾添加，然后source /etc/profile
+export GOPATH=/go
+export GOROOT=/usr/local/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+```
+
+### centos安装bcc-tools
+
+```
+[root@centos-80 ~]# yum update
+[root@centos-80 ~]# rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org && rpm -Uvh http://www.elrepo.org/elrepo-release-7.0-2.el7.elrepo.noarch.rpm
+[root@centos-80 ~]# uname -r ## 
+3.10.0-862.el7.x86_64
+[root@centos-80 ~]# yum remove kernel-headers kernel-tools kernel-tools-libs
+[root@centos-80 ~]# yum --disablerepo="*" --enablerepo="elrepo-kernel" install kernel-ml kernel-ml-devel kernel-ml-headers kernel-ml-tools kernel-ml-tools-libs kernel-ml-tools-libs-devel 
+[root@centos-80 ~]# sed -i '/GRUB_DEFAULT/s/=.*/=0/' /etc/default/grub
+[root@centos-80 ~]# grub2-mkconfig -o /boot/grub2/grub.cfg
+[root@centos-80 ~]# reboot
+[root@centos-80 ~]# uname -r ## 升级成功
+4.20.0-1.el7.elrepo.x86_64
+[root@centos-80 ~]# yum install -y bcc-tools
+[root@centos-80 ~]# echo 'export PATH=$PATH:/usr/share/bcc/tools' > /etc/profile.d/bcc-tools.sh
+[root@centos-80 ~]# . /etc/profile.d/bcc-tools.sh
+[root@centos-80 ~]# cachestat 1 1 ## 测试安装是否成功
+TOTAL MISSES HITS DIRTIES BUFFERS_MB CACHED_MB
+0 0 0 0 2 287
+```
+
+测试案例:
+
+略。

