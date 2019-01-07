@@ -1107,6 +1107,8 @@ https://filemanager.appspot.com/search?q=d&a=%3Cscript%3E%20%20%20%20%28%28%29%3
 
 js代码变成了红色，也说明XSS-Auditor检测到攻击。
 
+原因: **检测恶意向量时有一个规则，当url中带有页面里的JavaScript资源代码时，就会认为是恶意向量。**参考链接: https://xz.aliyun.com/t/3766
+
 通过题目可以知道flag以文件的形式保存在管理员的账号中，并且flag的形式为35c3_****。
 
 这样，当我们搜索文件的时候，便可以搜索到flag。

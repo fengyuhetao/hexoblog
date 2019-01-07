@@ -221,7 +221,109 @@ public class WebConfig extends WebMvcConfigurationSupport{
 
 ```
 
+## forward和redirect跳转的区别
 
+1、request.getRequestDispatcher("a").forward(rquest,response); request转发，它可以保存request中的数据，页面跳转，但是地址是不调整的 。
+2、response.sendRedirect("b"); 方式是重定向，它的数据是不共享的，也就是说 request中保存的数据在b页面中是获取不到的，这种方式是表单是不能重复提交的 ，
+3、respons跳转是可以实现跨域的，地址栏也会变化。
 
+## 压测入门
 
+先入门，其他慢慢翻文档。
 
+###  jmeter使用入门
+
+https://www.cnblogs.com/test002/p/8034154.html
+
+### 自定义变量模拟多用户
+
+1. 添加-配置元件-CSV数据文件设置
+2. 设置文件名，变量名称比如:`token`
+3. 引用变量名称比如 `${token}`
+
+参考链接: https://www.cnblogs.com/jessicaxu/p/7512680.html
+
+### 命令行使用
+
+1. 录制好jmx
+2. sh jmeter.sh -n -t xxx.jmx -l result.jtl
+3. 将result.jtl 导入到jmeter
+
+### Redis压测工具Redis-benchmark
+
+1. redis-benchmark -h 127.0.0.1 -p 6379 -c 100 -n 100000               100个并发连接，100000个请求
+2. redis-benchmark -h 127.0.0.1 -p 6379 -q -d 100                             存取大小为100字节的数据包
+
+资料比较多，直接找就行
+
+## springboot打包war包
+
+1. 添加spring-boot-starter-tomcat的provided依赖
+2. 添加maven-war-plugin插件
+
+```
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-tomcat</artifactId>
+	<scope>provided</scope>
+</dependency>
+
+<build>
+	<finalName>${project.artifactId}</finalName>
+	<plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-war-plugin</artifactId>
+            <configuration>
+            	<failOnMissingWebXml>false</failOnMissingWebXml>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+处理一下入口类:
+
+```
+
+@SpringBootApplication
+public class MiaoshaApplication extends SpringBootServletInitializer {
+
+	public static void main(String[] args) {
+		SpringApplication.run(MiaoshaApplication.class, args);
+	}
+
+	@Override
+	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+		return builder.sources(MiaoshaApplication.class);
+	}
+}
+
+```
+
+最后:
+
+`mvn clean package`
+
+## 页面优化技术
+
+1. 页面缓存+URL缓存+对象缓存
+
+   * Cache Aside Pattern
+
+   * https://blog.csdn.net/goldenfish1919/article/details/79739186
+   * spring.resources 系列配置         具体慢慢了解
+
+2. 页面静态化，前后端分离
+
+   * 尽量使得前端页面没有变化          利用浏览器缓存
+   * spring.resources 系列配置         具体慢慢了解
+
+3. 静态资源优化
+
+   * js/css 压缩                     删掉空白字符和注释等等，从而减少流量               Tengine 支持该功能             webpack用于打包
+   * 多个js/css组合              减少连接数            Tengine 支持该功能
+
+4. CDN优化
+
+   * 就近访问需要在了解
