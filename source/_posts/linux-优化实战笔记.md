@@ -905,3 +905,21 @@ Linux 提供了一个  /proc/sys/vm/swappiness 选项，用来调整使用 Swap 
 swappiness 的范围是 0-100，数值越大，越积极使用 Swap，也就是更倾向于回收匿名页；数值越小，越消极使用 Swap，也就是更倾向于回收文件页。虽然 swappiness 的范围是 0-100，不过要注意，这并不是内存的百分比，而是调整 Swap 积极程度的权重，即使你把它设置成 0，当[剩余内存 + 文件页小于页高阈值](https://www.kernel.org/doc/Documentation/sysctl/vm.txt),还是会发生swap.
 
 ，当剩余内存 + 文件页小于页高阈值
+
+案例：
+
+查看每个进程swap使用量
+
+`for file in /proc/*/status ; do awk '/VmSwap|Name|^Pid/{printf $2 " " $3}END{ print ""}' $file; done | sort -k 3 -n -r | head`
+
+计算物理内存使用总量:
+
+```
+# 使用 grep 查找 Pss 指标后，再用 awk 计算累加值
+$ grep Pss /proc/[1-9]*/smaps | awk '{total+=$2}; END {printf "%d kB\n", total }'
+391266 kB
+```
+
+
+
+略。
