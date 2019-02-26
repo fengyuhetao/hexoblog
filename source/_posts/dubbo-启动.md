@@ -3,13 +3,12 @@ title: dubbo-启动
 tags: dubbo
 abbrlink: 11234
 date: 2018-09-20 11:25:08
-password: dubbo
 notshow: true
 ---
 
 ## 前言
 
-**长期陷于CRUD，能力只退不进，期待dubbo源码改变现状**
+**长期陷于CRUD，能力只退不进，期待dubbo源码能给点转变**
 
 ## 配置环境:
 
@@ -20,7 +19,7 @@ notshow: true
 
 ## 开发工具: Intellij idea
 
-现将`fork`到自己的仓库中，然后使用`Intellij idea`直接从`https://github.com/fengyuhetao/dubbo.git`拉取项目。
+现将dubbo直接`fork`到自己的仓库中，然后使用`Intellij idea`直接从`https://github.com/fengyuhetao/dubbo.git`拉取项目。
 
 ## 启动demo项目
 
@@ -47,8 +46,6 @@ notshow: true
 然后，重新启动provider和consumer，这时候发现依然无法成功。
 
 问题在于本地网卡和虚拟网卡过多，导致网络混乱造成的，禁用无关网卡即可。
-
-**在本地调用dubbo的时候出现无法连接的问题，并且卡死tomcat的情况，叫我过去帮忙解决，在日志里发现有一个未知ip调用，最初以为是中病毒，但是最后发现是他的机器上同时安装了vmware虚拟网卡导致网络混乱造成的，将vmware的虚拟网卡断开后，解决此问题。 ---- https://blog.csdn.net/youngwizard/article/details/8530751**
 
 ![](/assets/dubbo/TIM截图20180920173149.png)
 

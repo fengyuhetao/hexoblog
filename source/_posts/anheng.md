@@ -1,6 +1,5 @@
 ---
 title: anheng
-password: anheng
 abbrlink: 45708
 date: 2018-09-22 09:37:18
 tags: ctf

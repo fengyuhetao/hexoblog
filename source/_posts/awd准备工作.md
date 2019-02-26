@@ -1,6 +1,5 @@
 ---
 title: awd准备工作
-password: awd-prepare
 abbrlink: 12920
 date: 2018-08-21 10:32:18
 tags: 

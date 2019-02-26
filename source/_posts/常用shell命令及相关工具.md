@@ -111,18 +111,18 @@ tags:
 >
 >exiftool -Exif:ImageDescription="%^&*()[]{}" [picture_name]
 
-##curl发送post请求,带上cookie
+##curl发送请求
 
 > curl -d "param1=value1&param2=value2" -b "cookie_name1=value1&cookie_name2=value2" url 
 
-> curl上传文件，传递参数
-
-> curl https://websec.fr/level28/index.php -F "flag_file=@1.php" -F "submit=1"
+> curl上传文件，传递多个参数，一个参数需要一个`-F`
 >
+> curl -F "file=@composer.json" -F "chunks=3" -F "chunk=1" -F "name=1.jsp" "http://localhost:8080/fileupload"
+
 > url中需要转义字符如下:
 >
 > `[`,`]`,`{`,`}`
->
+
 > curl保存cookie到文件中，并使用该cookie，可以及时更新cookie
 >
 > > curl -v www.baidu.com -c ./cookie -b ./cookie 
@@ -845,4 +845,12 @@ https://github.com/SkyLined/LocalNetworkScanner.git
 ## 大素数分解网站
 
 **http://www.factordb.com/index.php?query=542800573380084826910381**
+
+## centos防火墙
+
+`firewall-cmd --permanent --add-port=2222/tcp`
+
+`firewall-cmd --reload`
+
+`firewall-cmd --zone=public --list-ports`
 

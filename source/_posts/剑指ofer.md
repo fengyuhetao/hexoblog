@@ -116,3 +116,91 @@ int countRange(int numbers[], int length, int start, int end) {
 }
 ```
 
+## 将空格替换为%20
+
+##时间复杂度
+
+T: O(n) 首先遍历一遍字符串，找出所有的空格数，统计出最终字符串长度。
+
+```
+#include <stdio.h>
+#include <assert.h>
+
+void ReplaceBlank(char str[], int length, int limit);
+
+int main() {
+	char str[50];
+	printf("请输入一个字符串:");
+	gets(str);
+	printf("字符串: %s\n", str);
+	int length = 0;
+	length = strlen(str);
+	printf("长度为:%d", length);
+	ReplaceBlank(str, length, 50);
+	printf("转换后的字符串:%s", str);
+	return 0;
+}
+
+void ReplaceBlank(char str[], int length, int limit) {
+	if(length == 0) {
+		return;
+	}
+	int blanknumber = 0;
+	for(int i = 0; i< length; i++) {
+		if(str[i] == 32) {
+			blanknumber++;
+		}
+	}
+
+	int replaceStrLength = length + blanknumber * 2;
+	if(replaceStrLength >= 50) {
+		printf("超出范围");
+		return;
+	}
+	str[replaceStrLength] = '\0';
+	for(int i = length - 1; i >= 0; i--) {
+		if(str[i] == 32) {
+			str[replaceStrLength - 3] = '%';
+			str[replaceStrLength - 2] = '2';
+			str[replaceStrLength - 1] = '0';
+			replaceStrLength -= 3;
+		} else {
+			str[replaceStrLength - 1] = str[i];
+			replaceStrLength -= 1;
+		}
+	}
+}
+```
+
+链表:
+
+```
+//从尾到头打印链表
+//使用递归，容易出现堆栈溢出
+//使用栈
+void PrintListReversingly_Iteratively(ListNode *pHead) {
+    int result[20] = {0};
+    ListNode *pNode = pHead;
+    int length = 0;
+    while(pNode != NULL) {
+        result[length] = pNode->m_nValue;
+        length++;
+        pNode = pNode->m_pNext;
+    }
+
+    for(int i = length - 1; i >= 0; i--) {
+        printf("%d\t", result[i]);
+    }
+}
+//
+//void Recursively(ListNode *pHead) {
+//    if(pHead != NULL) {
+//        if(pHead->m_pNext != NULL) {
+//            Recursively(pHead->m_pNext);
+//        }
+//
+//        printf("%d\t", pHead->m_nValue);
+//    }
+//}
+```
+

@@ -1,7 +1,6 @@
 ---
 title: suctf2018
 tags: ctf
-password: 654321
 abbrlink: 26365
 date: 2018-05-28 16:46:05
 ---

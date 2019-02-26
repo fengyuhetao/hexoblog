@@ -1,6 +1,5 @@
 ---
 title: code-breaking
-password: codebreaking
 abbrlink: 16617
 date: 2018-11-25 12:03:18
 tags:
