@@ -9,6 +9,10 @@ tags:
 
 > grep -o . file.txt | sort | uniq -c | sort -rn
 
+## Python使用其他镜像安装包
+
+> pip3 install --index https://pypi.mirrors.ustc.edu.cn/simple/ scapy-http
+
 ## Python将16进制字符串转化为ascii码
 
 > a = "456e"
@@ -27,41 +31,41 @@ tags:
 >
 > ''.join([(hex(int(b, 2))[2:]).zfill(2) for b in [a[i:i+8] for i in range(0, len(a), 8)]])
 
-##hexdump使用
+## hexdump使用
 
 > hexdump [filename]  以16进制查看文件
 >
 > hexdumlp -C [filename] 以16进制查看文件同时显示ascii码
 
-##7z使用
+## 7z使用
 
 > 7z x [压缩包]
 
-##binwalk使用
+## binwalk使用
 
 > binwalk [filename] 查看文件信息
 >
 > binwalk -e [filename]  提取文件
 
-##strings使用
+## strings使用
 
 > strings -10 [filename] 从二进制文件或普通文件中查找可打印的字符串，-10  设置显示的最小字符串
 
-##base64使用
+## base64使用
 
 > echo [base64字符串] | base64 -d              base64解密
 >
 > echo [字符串] | base64                              base64加密
 
-##debin,ubuntu删除所有带 rc 标记的dpkg包
+## debin,ubuntu删除所有带 rc 标记的dpkg包
 
 > dpkg -l | grep ^rc | cut -d' ' -f3 | sudo xargs dpkg --purge
 
-##批量计算文件夹中所有文件md5值
+## 批量计算文件夹中所有文件md5值
 
 > md5sum *
 
-##LSB检查
+## LSB检查
 
 > ```python
 > >>> import Image
@@ -69,17 +73,17 @@ tags:
 > >>> a.point(lambda i: 255 if i&1 else 0).show()
 > ```
 
-##查看文件夹下边的某个字符串
+## 查看文件夹下边的某个字符串
 
 > grep -rn -A10 -B5 "php_string_shuffle" ./
 >
 > grep -rn -A10 -B5 "php_string_shuffle" -l ./          只列出文件名
 
-##监控目录变化
+## 监控目录变化
 
 > watch -n2 ls -l /proc/11631/fd/
 
-##dd命令使用
+## dd命令使用
 
 >  dd if=carter.jpg of=carter-1.jpg skip=140147 bs=1
 >
@@ -97,21 +101,21 @@ tags:
 >
 >  上边的命令就是从test文件中的第6(skip * bs = 2 * 3)个字节开始，读3（count * bs = 1 * 3）个字节，写入到test1文件中。
 
-##shell文件去重
+## shell文件去重
 
 > sort filename | uniq
 
-##socat启动一道pwn题目
+## socat启动一道pwn题目
 
 > socat tcp-l:8080,fork exec:./note,reuseaddr
 
-##exiftool使用
+## exiftool使用
 
 >exiftool [picture_name]
 >
 >exiftool -Exif:ImageDescription="%^&*()[]{}" [picture_name]
 
-##curl发送请求
+## curl发送请求
 
 > curl -d "param1=value1&param2=value2" -b "cookie_name1=value1&cookie_name2=value2" url 
 
@@ -138,13 +142,13 @@ tags:
 >
 >  grep -i "connection" -r ./ --include *.{class|xml}
 
-##查找文件
+## 查找文件
 > find / -name "flag"
 
-##ngrep监听80端口
+## ngrep监听80端口
 > ngrep -W byline -d eth0 port 80
 
-##scp命令使用
+## scp命令使用
 
 > A.104.238.161.75，B.43.224.34.73
 >
@@ -160,7 +164,7 @@ tags:
 >
 > scp -r /root/lk root@43.224.34.73:/home/lk/cpfile
 
-##nc传送文件
+## nc传送文件
 
 > A.104.238.161.75     B.43.224.34.73
 >
@@ -188,7 +192,7 @@ tags:
 >
 > A: tar cfz - * | nc 43.224.34.73 [port]
 
-##tcpdump抓包
+## tcpdump抓包
 
 > sudo tcpdump tcp -c 100 -i ens33  -nn -XX -vv
 >
@@ -244,8 +248,6 @@ http://dnsbin.zhack.ca/#master=a901ccef8fc26818ea0e
 ## 全种类浏览器内网IP地址扫描（javascript版）
 
 ```
-
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -476,7 +478,6 @@ http://dnsbin.zhack.ca/#master=a901ccef8fc26818ea0e
 ## 异步内网IP扫描
 
 ```
-
 <!doctype HTML>
 <html>
 <head>
