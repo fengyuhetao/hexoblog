@@ -1,5 +1,5 @@
 ---
-title: ctf题目-php调试分析
+title: php调试分析
 tags: ctf_php_debug
 abbrlink: 31116
 date: 2018-12-05 11:41:55
